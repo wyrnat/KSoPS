@@ -14,11 +14,11 @@ class SingleMeasure(object):
         '''
         Constructor
         '''
-        self.adatom = {'deposition_sputter': 0,
-                       'clusterdeposition_sputter': 0,
-                       'nucleation': 0,
-                       'aggregation': 0,
-                       'coalescence': 0
+        self.adatom = {'deposition_sputter': 0,        #deposition on substrate
+                       'clusterdeposition_sputter': 0, #deposistion on cluster
+                       'nucleation': 0,                #2 adatoms
+                       'aggregation': 0,               #adatom and cluster
+                       'coalescence': 0                #2 clusters
                        }
         
         
@@ -32,4 +32,4 @@ class SingleMeasure(object):
         return None
     
     def GET(self):
-        return list(self.adatom)
+        return self.adatom

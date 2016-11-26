@@ -3,8 +3,7 @@ Created on 04.11.2015
 
 @author: jannik
 '''
-from particleService import ParticleService
-from interactionService import InteractionService
+
 import numpy
 
 class MeasureService(object):
@@ -12,19 +11,14 @@ class MeasureService(object):
     classdocs
     '''
 
-
-
-
     def getClusterParameter(self, cluster):
         """
         Returns array of the cluster parameter pos, r and rev
         """
-        return [cluster.getX(), cluster.getY(), cluster.getR(), cluster.getREv()]
+        return [cluster.getX(), cluster.getY(), cluster.getR(), cluster.getREv(), cluster.getN()]
     
     
-    def getMeanValues(self, clusterList):
-        partServ = ParticleService()
-        intServ = InteractionService()
+    def getMeanValues(self, clusterList, coalescenceList):
         r = 0
         d = 0
         r_list = []
@@ -36,13 +30,7 @@ class MeasureService(object):
             r += cluster.getR()
             
             # Distance
-            d_part = 0
-            if len(cluster.getContacts()) != 0:
-                for adCluster in cluster.getContacts():
-                    if d_part > partServ.getParticleDistance(cluster, adCluster):
-                        d_part = partServ.getParticleDistance(cluster, adCluster)
-            else:
-                d_part = intServ.findClosestCluster(cluster, clusterList)
+            d_part = self.findClosestCluster(cluster, clusterList, coalescenceList)
             d += d_part
             
             # Radius List
@@ -54,7 +42,7 @@ class MeasureService(object):
             # Cluster Parameter List
             cluster_plist.append(self.getClusterParameter(cluster))
             
-        return r/clusterList.clusterNumber() , d/clusterList.clusterNumber() , r_list , d_list, cluster_plist
+        return r/clusterList.clusterNumber() , d/clusterList.clusterNumber() ,  r_list , d_list, cluster_plist
                 
     def getThickness(self, initval, clusterList):
         N = clusterList.getAllN()
@@ -63,3 +51,12 @@ class MeasureService(object):
         
         thickness = 4 * numpy.sqrt(2) * N * r**3 / area**2
         return thickness  
+    
+    def findClosestCluster(self, cluster, clusterList, coalescenceList):
+        temp_liste = clusterList.GET()
+        pl = coalescenceList.findCluster(cluster)
+        temp_liste.removeParticles(pl)
+        x_list = numpy.array([particle.getX() for particle in temp_liste])
+        y_list = numpy.array([particle.getY() for particle in temp_liste])
+        distance_list = numpy.sqrt( (cluster.getX()-x_list)**2 + (cluster.getY()-y_list)**2 )   
+        return numpy.amin(distance_list)

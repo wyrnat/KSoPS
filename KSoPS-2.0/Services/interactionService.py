@@ -7,6 +7,7 @@ import numpy
 from scipy import integrate
 from particleService import ParticleService
 from random import random
+from setuptools.command.build_ext import if_dl
 
 class InteractionService(object):
     '''
@@ -15,60 +16,93 @@ class InteractionService(object):
 
         
     def adatomOnCluster(self, initval, adatomList, adatomWWList, clusterList, coalescenceList, smeasure):
+        """
+        Checks for overlapping radii of clusters and sputtered atoms
+        If overlap, delete the sputtered atom and increase the atom Number of the cluster by 1
+        else, remove the sputtered atom from the adatomList and add it to clusterList, adatomWWList and coalescenceList
+        @param initval: (Initvals) class containing the system initial values
+        @param adatomList: (ParticleList) Class with fresh sputtered atoms
+        @param adatomWWList: (ParticleList) Class with all adatoms deposited on the surface
+        @param clusterList: (ParticleList) class contains all clusters
+        @param coalescenceList: (PlList) class containing ParticleLists of merged clusters
+        @param smeasure: (SingleMeasure) class collecting measurement information during the process
+        """
         pServ = ParticleService()
+        temp_clusterList = clusterList.GET()
+        temp_adatomList = adatomList.GET()
         
-        x_list = numpy.array([cluster.getX() for cluster in clusterList.GET()])
-        y_list = numpy.array([cluster.getY() for cluster in clusterList.GET()])
-        r_list = numpy.array([cluster.getR() for cluster in clusterList.GET()])
+        x_list = numpy.array([cluster.getX() for cluster in temp_clusterList])
+        y_list = numpy.array([cluster.getY() for cluster in temp_clusterList])
+        r_list = numpy.array([cluster.getR() for cluster in temp_clusterList])
         
-        for adatom in adatomList.GET():
+        for adatom in temp_adatomList:
             x_square = (adatom.getX() - x_list)**2
             y_square = (adatom.getY() - y_list)**2
             distance_list = numpy.array(numpy.sqrt(x_square + y_square))
             
             
-            cluster = (numpy.array(clusterList.GET()))[distance_list <= (adatom.getR() + r_list)]
-            if len(cluster)!=0:
-                pServ.addAdatomtoCluster(initval, adatom, cluster, adatomList, clusterList)
+            clusters = (numpy.array(temp_clusterList))[distance_list <= (adatom.getR() + r_list)]
+            if len(clusters)!=0:
+                pServ.addAdatomtoCluster(initval, adatom, clusters[0], adatomList, clusterList, coalescenceList)
                 smeasure.adatomEvent('clusterdeposition_sputter', 1)
             else:
                 pServ.AdatomOnSurface(adatom, adatomList, adatomWWList, clusterList, coalescenceList)
                 smeasure.adatomEvent('deposition_sputter', 1)
                 
     def adatomWW(self, initval, adatomWWList, clusterList, coalescenceList, smeasure):
+        """
+        Finds overlapping radii and Event radii of adatoms with all the partcles on the
+        surface, inclusively the adatoms themselves
+        @param initval: (Initvals) class containing the system initial values
+        @param adatomWWList: (ParticleList) Class with all adatoms deposited on the surface
+        @param clusterList: (ParticleList) class contains all clusters
+        @param coalescenceList: (PlList) class containing ParticleLists of merged clusters
+        @param smeasure: (SingleMeasure) class collecting measurement information during the process
+        """
         pServ = ParticleService()
+        temp_clusterList = clusterList.GET()
+        temp_adatomList = adatomWWList.GET()
         
-        x_list = numpy.array([cluster.getX() for cluster in clusterList.GET()])
-        y_list = numpy.array([cluster.getY() for cluster in clusterList.GET()])
-        r_list = numpy.array([cluster.getR() for cluster in clusterList.GET()])
-        rev_list = numpy.array([cluster.getREv() for cluster in clusterList.GET()])
+        x_list = numpy.array([cluster.getX() for cluster in temp_clusterList])
+        y_list = numpy.array([cluster.getY() for cluster in temp_clusterList])
+        r_list = numpy.array([cluster.getR() for cluster in temp_clusterList])
+        rev_list = numpy.array([cluster.getREv() for cluster in temp_clusterList])
         
-        for adatom in adatomWWList.GET():
+        
+        for adatom in temp_adatomList:
+            if adatom not in clusterList.GET():
+                continue
             x_square = (adatom.getX() - x_list)**2
             y_square = (adatom.getY() - y_list)**2
             distance_list = numpy.array(numpy.sqrt(x_square + y_square))
             
-            r_ol = (numpy.array(clusterList.GET()))[(distance_list <= adatom.getR() + r_list)]
-            rev_ol = (numpy.array(clusterList.GET()))[(distance_list <= adatom.getREv() + rev_list)]
+            r_ol = (numpy.array(temp_clusterList))[(distance_list <= adatom.getR() + r_list)]
+            rev_ol = (numpy.array(temp_clusterList))[(distance_list <= adatom.getREv() + rev_list)]
             
             ''' *** R Overlap *** '''
-            r_ol=numpy.delete(r_ol, numpy.where(r_ol==adatom)[0][0])
-            if len(r_ol) != 0:
-                pServ.adatomClusterWW(initval, adatom, r_ol[0], adatomWWList, clusterList, coalescenceList)
-                if r_ol[0].getN() == 1:
+            r_ol_clear=[particle for particle in r_ol if 
+                  (adatom!=particle and particle in clusterList.GET())]
+            if len(r_ol_clear) != 0:
+                if pServ.adatomClusterWW(initval, adatom, r_ol_clear[0], adatomWWList, clusterList, coalescenceList) == False:
+                    continue
+                
+                if r_ol_clear[0].getN() == 1:
                     smeasure.adatomEvent('nucleation',1)
                 else:
                     smeasure.adatomEvent('aggregation',1)
                 continue
 
             ''' *** Rev Overlap for great WQS *** '''
-            rev_ol=numpy.delete(rev_ol, numpy.where(rev_ol==adatom)[0][0])
+            rev_ol_clear = [particle for particle in rev_ol if 
+                            (particle not in r_ol and particle !=adatom and particle in clusterList.GET())]
             interaction = False
-            if len(rev_ol) != 0:
-                for cluster in rev_ol:
-                    distance = self.getParticleDistance(adatom.getX(), adatom.getY(), cluster.getX(), cluster.getY())
-                    if self.checkGreatProhability(adatom.getREv(), cluster.getREv(), adatom.getR(), cluster.getR(), distance) >= 1:
-                        pServ.adatomClusterWW(initval, adatom, cluster, adatomWWList, clusterList, coalescenceList)
+            if len(rev_ol_clear) != 0:
+                for cluster in rev_ol_clear:
+                    #print "AdatomWW check "+ str(self.checkGreatProhability(adatom, cluster))
+                    if self.checkGreatProhability(adatom, cluster) >= 1:
+                        if pServ.adatomClusterWW(initval, adatom, cluster, adatomWWList, clusterList, coalescenceList) == False:
+                            continue
+                        
                         if cluster.getN() == 1:
                             smeasure.adatomEvent('nucleation',1)
                         else:
@@ -78,274 +112,155 @@ class InteractionService(object):
                 
                 ''' *** Rev Overlap for small WQS *** '''
                 if interaction == False:
-                    for cluster in rev_ol:
-                        distance = self.getParticleDistance(adatom.getX(), adatom.getY(), cluster.getX(), cluster.getY())
-                        WQS = self.getCollisionProhability(adatom.getREv(), cluster.getREv(), adatom.getR(), cluster.getR(), distance)
+                    for cluster in rev_ol_clear:
+                        WQS = self.getCollisionProhability(adatom, cluster)
+                        #print "AdatomWW WQs "+ str(WQS)
                         if random() < WQS:
-                            pServ.adatomClusterWW(initval, adatom, cluster, adatomWWList, clusterList, coalescenceList)
+                            if pServ.adatomClusterWW(initval, adatom, cluster, adatomWWList, clusterList, coalescenceList) == False:
+                                continue
                             if cluster.getN() == 1:
-                                smeasure.adatomEvent('nucleation',2)
+                                smeasure.adatomEvent('nucleation',1)
                             else:
                                 smeasure.adatomEvent('aggregation',1)
                             interaction = True
                             break
                         
-    def diffusionOverlap(self, initval, pl, clusterList, coalescenceList):
+    def coalescence(self, initval, clusterList, coalescenceList, smeasure):
         pServ = ParticleService()
+        temp_clusterList = clusterList.GET()
         
-        x_list = numpy.array([cluster.getX() for cluster in clusterList.GET()])
-        y_list = numpy.array([cluster.getY() for cluster in clusterList.GET()])
-        r_list = numpy.array([cluster.getR() for cluster in clusterList.GET()])
-        rev_list = numpy.array([cluster.getREv() for cluster in clusterList.GET()])
+        x_list = numpy.array([cluster.getX() for cluster in temp_clusterList])
+        y_list = numpy.array([cluster.getY() for cluster in temp_clusterList])
+        r_list = numpy.array([cluster.getR() for cluster in temp_clusterList])
+        rev_list = numpy.array([cluster.getREv() for cluster in temp_clusterList])
         
-        for cluster in pl.GET():
-            x_square = (cluster.getX() - x_list)**2
-            y_square = (cluster.getY() - y_list)**2
-            distance_list = numpy.sqrt(x_square + y_square)
+        for i, temp_pl in enumerate(coalescenceList.GET()):
+            #check if particlelist is still in refreshed coalescenceList or its a null list
+            if (temp_pl not in coalescenceList.GET()) or (temp_pl.clusterNumber()==0):
+                continue
+            for cluster in temp_pl:
+                if (cluster not in clusterList.GET()):
+                    continue
+                x_square = (cluster.getX() - x_list)**2
+                y_square = (cluster.getY() - y_list)**2
+                distance_list = numpy.sqrt(x_square + y_square)
             
-            r_ol = (numpy.array(clusterList.GET()))[(distance_list <= cluster.getR() + r_list)]
-            rev_ol = (numpy.array(clusterList.GET()))[(distance_list <= cluster.getREv() + rev_list)]
+                r_ol = (numpy.array(temp_clusterList))[(distance_list <= cluster.getR() + r_list)]
+                rev_ol = (numpy.array(temp_clusterList))[(distance_list <= cluster.getREv() + rev_list)]
             
 
-            r_ol_clear = [cluster for cluster in r_ol if cluster not in pl.GET()]
+                r_ol_clear = [particle for particle in r_ol if
+                              (particle not in coalescenceList.getListbyIndex(i)) and (cluster != particle) and (particle in clusterList.GET())]
             
-            if len(r_ol_clear) != 0 and coalescenceList.findCluster(r_ol_clear[0])!=None:
-                fuse=False
-                for cluster2 in r_ol_clear:
-                    if pServ.addContact(cluster, cluster2):
-                        pServ.fuseParticleLists(coalescenceList.findCluster(cluster2), pl)
-                        fuse=True
-                        break
-            
-            rev_ol_clear = [cluster for cluster in rev_ol if (cluster not in pl.GET() and cluster not in r_ol_clear)]
-            
-            if len(rev_ol_clear) != 0 and coalescenceList.findCluster(r_ol_clear[0])!=None and fuse==False:
-                for cluster2 in rev_ol_clear:
-                    distance = self.getParticleDistance(cluster.getX(), cluster.getY(), cluster2.getX(), cluster2.getY())
-                    if self.checkGreatProhability(cluster.getREv(), cluster2.getREv(), cluster.getR(), cluster2.getR(), distance) >= 1:
-                        if pServ.addContact(cluster, cluster2):
-                            pServ.fuseParticleLists(coalescenceList.findCluster(cluster2),pl)
-                    else:
-                        WQS = self.getCollisionProhability(cluster2.getREv(), cluster.getREv(), cluster2.getR(), cluster.getR(), distance)
-                        rndm = random.random
-                        if rndm < WQS:
+
+                #check for radius overlap
+                if len(r_ol_clear) != 0:
+                    for cluster2 in r_ol_clear:
+                    
+                        #in case of adatoms
+                        if (cluster2.getN() == 1) and (coalescenceList.findCluster(cluster2).clusterNumber() == 1):
+                            pServ.addParticleToCluster(initval, cluster2, cluster, clusterList, coalescenceList)
+                            if cluster.getN() == 1:
+                                smeasure.adatomEvent('nucleation', 1)
+                            else:
+                                smeasure.adatomEvent('aggregation', 1)
+                        # for clusters or clustergroups        
+                        else:
                             if pServ.addContact(cluster, cluster2):
-                                pServ.fuseParticleLists(coalescenceList.findCluster(cluster2),pl)
+                                pl_living = coalescenceList.getListbyIndex(i)
+                                pl_destroyed = coalescenceList.findCluster(cluster2)
+                                #transfer the particle objects and delete the empty particle list object
+                                pServ.fuseParticleLists(pl_living, pl_destroyed, coalescenceList)
+                            
+            
+            
+                rev_ol_clear = [particle for particle in rev_ol if 
+                                (particle not in coalescenceList.getListbyIndex(i)) and (particle not in r_ol_clear) and (particle != cluster)]
+            
+                if (len(rev_ol_clear)) != 0:
+                    for cluster2 in rev_ol_clear:
+                    
+                        if self.calculateOverlap(cluster, cluster2, initval)>=1:
+                            if (cluster2.getN() == 1) and (coalescenceList.findCluster(cluster2).clusterNumber() == 1):
+                                pServ.addParticleToCluster(initval, cluster2, cluster, clusterList, coalescenceList)
+                                if cluster.getN() == 1:
+                                    smeasure.adatomEvent('nucleation', 1)
+                                else:
+                                    smeasure.adatomEvent('aggregation', 1)
+                            # for clusters or clustergroups        
+                            else:
+                                if pServ.addContact(cluster, cluster2):
+                                    pl_living = coalescenceList.getListbyIndex(i)
+                                    pl_destroyed = coalescenceList.findCluster(cluster2)
+                                    #transfer the particle objects and delete the empty particle list object
+                                    pServ.fuseParticleLists(pl_living, pl_destroyed, coalescenceList)
+                                
                                 
     def calibrateCluster(self, pl):
         partServ = ParticleService()
-        x_list = numpy.array([cluster.getX() for cluster in pl.GET()])
-        y_list = numpy.array([cluster.getY() for cluster in pl.GET()])
-        r_list = numpy.array([cluster.getR() for cluster in pl.GET()])
+        temp_pl = pl.GET()
+        x_list = numpy.array([cluster.getX() for cluster in temp_pl])
+        y_list = numpy.array([cluster.getY() for cluster in temp_pl])
+        r_list = numpy.array([cluster.getR() for cluster in temp_pl])
         
-        for cluster in pl.GET():
+        for cluster in temp_pl:
             x_square = (cluster.getX() - x_list)**2
             y_square = (cluster.getY() - y_list)**2
             distance_list = numpy.sqrt(x_square + y_square)
             
-            r_ol = (numpy.array(pl.GET()))[(distance_list <= cluster.getR() + r_list)]
-            r_ol_clear = [elm for elm in r_ol if (elm not in cluster.getContacts()) and (elm != cluster)]
+            r_ol = (numpy.array(temp_pl))[(distance_list <= cluster.getR() + r_list)]
+            r_ol_clear = [elm for elm in r_ol if
+                          (elm != cluster) and elm.getN()!=0 and elm not in cluster.getContacts()]
             
+            # For clusters penetrating this cluster
             for interCluster in r_ol_clear:
                 if interCluster.getN() > cluster.getN():
                     continue
                 else:
                     partServ.clusterSurfaceTouching(cluster, interCluster)
             
+            # To keep the slave cluster near the master cluster
             for adCluster in cluster.getContacts():
                 if adCluster.getN() > cluster.getN():
                     continue
                 else:
                     partServ.clusterSurfaceTouching(cluster, adCluster)     
-                    
-    def findClosestCluster(self, cluster, clusterList):
-        temp_liste = clusterList.GET()
-        temp_liste.remove(cluster)
-        x_list = numpy.array([particle.getX() for particle in temp_liste])
-        y_list = numpy.array([particle.getY() for particle in temp_liste])
-        distance_list = numpy.sqrt( (cluster.getX()-x_list)**2 + (cluster.getY()-y_list)**2 )   
-        return numpy.amin(distance_list)
-            
-            
-        
-            
             
             
     
-    def findCorrelation(self, cluster_list, clustercluster_hashlist_list):
-        """
-        
-        """
-        #sort for particle number
-        self.cluster_list.sort(key = lambda dist: dist[0], reverse = True)  # mass[i] >= mass[i+1]
-        
-        x_list = numpy.array([cluster.getX() for cluster in cluster_list])
-        y_list = numpy.array([cluster.getY() for cluster in cluster_list])
-        r_list = numpy.array([cluster.getREv() for cluster in cluster_list])
-        hash_list = numpy.array([cluster.getHash() for cluster in cluster_list])
-        destroy_list = []            
-        
-        for j in range(len(cluster_list)-1):
-            if j.getHash() in destroy_list:
-                continue
             
-            x_square = (x_list[j] - x_list[j+1:])**2
-            y_square = (y_list[j] - y_list[j+1:])**2
-            dist_list = numpy.sqrt(x_square + y_square)
-
-            destroy = (numpy.arange(len(dist_list)) + j + 1)[dist_list <= r_list[j] + r_list[j+1:]]
-            
-            
-            
-            for i in destroy:
-                if i in destroy_list:
-                    continue
-                
-                same_clusterclusterlist = False
-                for hashlist in clustercluster_hashlist_list:
-                    if (cluster_list[i].getHash() in hashlist) and ((cluster_list[j].getHash() in hashlist)):
-                        same_clusterclusterlist = True
-                        break
-                    if (cluster_list[i].getHash() in hashlist) and ((cluster_list[j].getHash() not in hashlist)):
-                        break
-                    if (cluster_list[i].getHash() not in hashlist) and ((cluster_list[j].getHash() in hashlist)):
-                        break
-                if same_clusterclusterlist == True:
-                    continue
-                
-                else:
-                    destroy_list.append(hash_list[i])   
-
-        self.cluster_list.removeParticle(destroy_list)
-                    
-    def getSputterOverlap(self, cluster_list1, cluster_list2):
-        """
-        @param cluster_list1: 
-        """
-        rev_result = []
-        r_result = []
-        x_list = numpy.array([cluster.getX() for cluster in cluster_list2.GET()])
-        y_list = numpy.array([cluster.getY() for cluster in cluster_list2.GET()])
-        r_list = numpy.array([cluster.getR() for cluster in cluster_list2.GET()])
-        rev_list = numpy.array([cluster.getREv() for cluster in cluster_list2.GET()])
-        
-        for cluster in cluster_list1.GET():    
-            x_square = (cluster.getX() - x_list)**2
-            y_square = (cluster.getY() - y_list)**2
-            distance_list = numpy.sqrt(x_square + y_square)
-
-            rev_result_part = (cluster_list2.GET())[(distance_list <= cluster.getREv() + rev_list)]
-            r_result_part = (cluster_list2.GET())[(distance_list <= cluster.getR() + r_list)]
-            
-            #delete hash_list entries in rev_result for existing in r
-            rev_result_part = [x for x in rev_result_part if x not in r_result_part]   
-             
-            rev_result.append(rev_result_part)
-            r_result.append(r_result_part)
-        return r_result, rev_result
-    
-            
-    def dim2GaussFunction(self, radius_ev, radius, r_0):
+    def convolutedGaussFunction(self, cluster, initval):
         # diffusion length / sqrt(12)
-        sigma = (radius_ev - radius)/3.464
+        R = cluster.getR()
+        REv = cluster.getREv()
+        sigma = (REv - R)/3.464
         
         #round value to prevent overflow 
-        if sigma < 0.001:
+        if (REv - R) < initval.getValue('radius'):
             #define a step function
-            result = lambda y,x: (abs(numpy.sqrt(y**2+(x-r_0)**2)) < radius)*1.0
+            result = lambda r: 1.0*(r<=R or r>=-R)
             return result
         else:
             c = numpy.sqrt(2*numpy.pi)
             
             #define the gauss function in 1dim. with 2dim normalisation
-            dist = lambda r: numpy.exp(-(r/sigma)**2/2.) / c**2 / sigma**2
+            dist = lambda r: numpy.exp(-(r/sigma)**2/2.) / c / sigma
             
             #calculate the gauss with integration over the sphere
-            dist_int = lambda r: (integrate.quad(dist, r-radius, r+radius))[0]
-            
-            result = lambda y,x: dist_int(numpy.sqrt(y**2+(x-r_0)**2))
-        
-            #returns a 2dim sphere integrated gauss function depending on y,x
+            result = lambda r: ( integrate.quad(dist, r-R, r+R, epsrel = 0.01) )[0]
             return result
         
         
-            
-    def normalDistributionIntegration(self, radius_ev, radius, position):
-        # diffusion length / sqrt(12)
-        sigma = (radius_ev - radius)/3.464
+    def calculateOverlap(self, cluster1, cluster2, initval):
         
-        #round value to prevent overflow 
-        if sigma < 0.001:
-            return 1
+        dist1 = self.convolutedGaussFunction(cluster1, initval)
+        dist2 = self.convolutedGaussFunction(cluster2, initval)
+        distance = numpy.sqrt((cluster1.getX()-cluster2.getX())**2 + (cluster1.getY()-cluster2.getY())**2)
         
-        a = position - radius
-        b = position + radius
+        dist = lambda r: dist1(r)*dist2(r-distance)
         
-        c = numpy.sqrt(2*numpy.pi)
-        gauss = lambda x: numpy.exp(-(x/sigma)**2/2) / c / sigma
-        result = integrate.quad(gauss, a, b)
-        return result[0]
-    
-
-    def getCollisionProhability(self, radius_ev1, radius_ev2, radius1, radius2, distance):
-        func1 = self.dim2GaussFunction(radius_ev1, radius1, 0)
-        func2 = self.dim2GaussFunction(radius_ev2, radius2, distance)
-        
-        
-        #If R_ev ~= R
-        if func1(0,0) == func1(0,radius_ev1/2.):
-            highfun = lambda x: numpy.sqrt(radius1**2-x**2)
-            lowfun = lambda x: -highfun(x)
-            prohability = integrate.dblquad(func2, -radius1, radius1,
-                                            lowfun, highfun,
-                                            epsabs=0.01, epsrel=0.01)
-            return prohability[0]
-        
-        elif func2(0,0) == func2(0,radius_ev2/2.):
-            highfun = lambda x: numpy.sqrt(radius2**2-(x-distance)**2)
-            lowfun = lambda x: -highfun(x)
-            prohability = integrate.dblquad(func1, distance-radius2, distance+radius2,
-                                            lowfun, highfun,
-                                            epsabs=0.01, epsrel=0.01)
-            return prohability[0]
-        
-        else:
-            #defines the overlap of both prohability functions
-            overlap = lambda y,x: func1(y,x) * func2(y,x)
-            
-            x = (radius_ev1**2 - radius_ev2**2 + distance**2)/(2*distance)
-            x_diff = radius_ev1 - x
-            y_diff = numpy.sqrt(radius_ev1**2-x**2)
-            
-            
-            lowfun = lambda x: -y_diff
-            highfun = lambda x: y_diff
-        
-            prohability = integrate.dblquad(overlap, x-x_diff, x+x_diff,
-                                            lowfun, highfun,
-                                            epsabs=0.01, epsrel=0.01)
-        
-            return prohability[0]
-        
-    def checkGreatProhability(self, radius_ev1, radius_ev2, radius1, radius2, distance):
-        """
-        estimate if the overlap integral of the prohability density functions of two clusters
-        is greater than 1 to shorten calculation time.
-        Make a cut along the centers of the event radii and integrate it
-        """
-        func1 = self.dim2GaussFunction(radius_ev1, radius1, 0)
-        func2 = self.dim2GaussFunction(radius_ev2, radius2, distance)
-        
-        dim1Overlap = lambda x: func1(0,x) * func2(0,x)
-        
-        #overlap cross section of event radii
-        x = (radius_ev1**2 - radius_ev2**2 + distance**2)/(2*distance)
-        x_diff = radius_ev1 - x
-        result = integrate.quad(dim1Overlap, x-x_diff, x+x_diff)
-        return result
-    
-    def getParticleDistance(self, x1, y1, x2, y2):
-        return numpy.sqrt((x1-x2)**2+(y1-y2)**2)
+        prohability = integrate.quad(dist, distance-cluster2.getREv(), cluster1.getREv(), epsrel = 0.01)
+        return prohability
            
         
             

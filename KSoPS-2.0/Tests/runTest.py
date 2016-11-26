@@ -8,5 +8,9 @@ from Werkzeug.KSoPSWerkzeug import Werkzeug
 
 wz = Werkzeug()
 
-wz.run(1)
-#wz.run(2)
+ex = "n"
+step = 0
+while ex!="q":
+    wz.run(step)
+    step+=1
+    ex = input("quit?")

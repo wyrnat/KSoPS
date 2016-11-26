@@ -35,12 +35,6 @@ class ParticleList(object):
             cluster.setX(cluster.getX() + dx)
             cluster.setY(cluster.getY() + dy)
     
-    def getInterN(self):
-        interN = 0
-        for particle in self.Liste:
-            interN += particle.getInterN()
-        return interN
-    
     def getListforIndice(self, ind_list):
         mylist = []
         for i in ind_list:
@@ -73,11 +67,12 @@ class ParticleList(object):
         Add a particle object to the list
         @param par: (particle) The particle object to be added
         """
-        assert (type(par) == Particle), 'parameter not from type "particle.Particle" '
+        assert (type(par) == Particle), 'given particle not from type "particle.Particle" '
+        assert (par not in self.Liste), "particle is already in particle list"
         self.Liste.append(par)
 
                 
-    def sortList(self, attribute, reverse=True):
+    def sortList(self, attribute = 'N', reverse=True):
         # sort the list after the attribute beginning with 1=big, 0=small
         self.Liste.sort(key = operator.attrgetter(attribute), reverse = reverse)
         return self.Liste

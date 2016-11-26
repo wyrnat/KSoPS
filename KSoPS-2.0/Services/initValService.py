@@ -15,18 +15,27 @@ class InitValService(object):
     '''
     
     def getParticleRate(self, initval):
+        """
+        returns number of deposited adatoms per simulation step
+        """
         growth_rate = initval.getValue('growth_rate')
         area = initval.getValue('area')
         radius = initval.getValue('radius')
         return int(numpy.ceil(growth_rate * area**2 / (numpy.sqrt(32) * radius**3)))
     
     def getArrhenius(self, initval, potential):
+        """
+        calculates the arrhenius term without material system dependent factors
+        """
         U = initval.getValue(potential)
         T = initval.getValue('T')
         return v_e * numpy.exp(-U / k_b / T)
         
     
     def getAdatomEventRadius(self, initval):
+        """
+        calculate the eventradius of an adatom
+        """
         
         a = initval.getValue('lattice_const')
         
@@ -41,24 +50,25 @@ class InitValService(object):
         return diff_length
     
     def getREv(self, initval, n):
-        style = initval.getValue('diffusion_choice')
+        """
+        Calculate the Eventradius for a cluster
+        """
+        potenz = initval.getValue('diffusion_exponent')
         arrhenius = self.getAdatomEventRadius(initval)
         
-        if style == 'pot':
-            #n = numpy.sqrt(2)*numpy.pi / 8 * (R/initval.getValue('radius'))**2
-            return arrhenius / numpy.power(3, n-1)
-        elif style == 'kin':
-            return arrhenius / numpy.sqrt(n)
-        else:
-            pass
+        return n**(potenz)*arrhenius
         
         
         
     def getAtomFlow(self, initval, R):
+        """
+        returns the atom number wandering from smaller to bigger cluster
+        Only depending on surface atoms of smaller cluster
+        """
         r = initval.getValue('radius')
         n = numpy.floor(numpy.pi / 3 / numpy.sqrt(2) * ( 6*(R/r)**2 - 12*R/r + 8))
         arrhenius = self.getArrhenius(initval, 'flow_e')
-        return n * arrhenius
+        return int(numpy.floor(n * arrhenius))
         
         
         

@@ -15,30 +15,25 @@ class InitVals(object):
         '''
         Constructor
         '''
-        self.param = {'measure_steps': 50,      #measuring after *n* ms 
-                      'area': 10,              #surface width in nm
+        self.param = {'measure_steps': 1,      #measuring after *n* ms 
+                      'area': 5,              #surface width in nm
                       'radius': 0.144,              #nm
                       'T': 273,                 #K
                       'lattice_const': 0.543,   #nm
-                      'growth_rate': 0.01,
-                      'schwoebl_e': 1,
-                      'flow_e': 1,
-                      'diffusion_e': 1,
-                      'diffusion_choice': 'pot',    #prop. to 1/m 1/sqrt(m) or only adatom movement
+                      'growth_rate': 0.005,     #nm/ms
+                      'flow_e': 10,
+                      'diffusion_e': 0.6,
+                      'diffusion_exponent': -0.8,    #diffusion prop to N^de
                       'no_clustering': False,   #adatoms clustering 2dim on surface
-                      'border_thickness': 10   #nm
-                      
-                      }
+                      'final_thickness': 10   #nm
+                    }
+        
+        #set any parameter with initiation of object like inputparam = {'a':10}
         if inputparam != None:
             for value in inputparam:
                 if value in self.param:
                     self.param[value] = inputparam[value]
         
     def getValue(self, bib):
-        if bib in self.param:
-            return self.param[bib]
-        else:
-            return None
-            
-            
-    #def setValues(self, measure_steps = 50, area = 200, radius = 0.144, T = 273):
+        assert (bib in self.param), "value not in initvals"
+        return self.param[bib]

@@ -19,10 +19,9 @@ class Particle(object):
         self.y = y
         self.r = r
         self.rev = rev
-        self.contacts = []
-        self.interN = 1         # Number of atoms with border to substrate
+        self.master = None
         self.surfaceN = 1       # Number of atoms on cluster surface
-        self.dist = [1,0]
+        self.N = 1
         
         
     """ Getter """
@@ -39,25 +38,14 @@ class Particle(object):
     def getREv(self):
         return self.rev
     
-    def getContacts(self):
-        return self.contacts
+    def getMaster(self):
+        return self.master
     
     def getN(self):
-        return self.dist[0]
+        return self.N
     
-    def getInterN(self):
-        return self.interN
-    
-    def getDist(self, pos = None):
-        if pos == None:
-            return self.dist
-        elif pos in  range(len(self.dist)):
-            return self.dist[pos]
-        else:
-            return False
-        
-    def getDistLen(self):
-        return len(self.dist)
+    def getsurfaceN(self):
+        return self.surfaceN
     
     """ Setter """
     
@@ -71,40 +59,23 @@ class Particle(object):
         self.r = r
         
     def setREv(self, rev):
-        self.rev = rev
+        self.rev = rev 
         
-    def addContacts(self, particle_list):
-        for particle in particle_list:
-            if particle not in particle_list:
-                self.contacts.append(particle)   
+    def setMaster (self, newmaster):
+        self.master = newmaster
                 
-    def removeContacts(self, particle_list):
-        for i, particle in enumerate(particle_list):
-            if particle in self.contacts:
-                self.contacts.pop(i)               
-        
-        
+    def removeMaster(self, particle_list):
+        self.master = None              
+         
     def atomFlow(self, n):
-        if self.dist[0] + n < 0:
+        if self.N + n < 0:
             return False
         else:
-            self.dist[0] += n
+            self.N += n
+            return True
             
-    def setInterN(self, interN):
-        self.interN = interN
-        
     def setSurfaceN(self, surfaceN):
         self.surfaceN = surfaceN
         
-    def setDist(self, value):
-        self.dist = value
-        
-    def setDistVal(self, value, pos):
-        assert (value >= 0), 'setDistVal: value negative'
-        assert (len(self.dist) > pos), 'setDistVal: pos out of range'
-        if pos in range(len(self.dist)):
-            self.dist[pos] = value
-        
-        if self.dist[-1] != 0:
-            self.dist.append(0)
+
   
