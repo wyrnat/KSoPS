@@ -68,7 +68,7 @@ class InitValService(object):
         r = initval.getValue('radius')
         n = numpy.floor(numpy.pi / 3 / numpy.sqrt(2) * ( 6*(R/r)**2 - 12*R/r + 8))
         arrhenius = self.getArrhenius(initval, 'flow_e')
-        return int(numpy.floor(n * arrhenius))
+        return int(numpy.floor(numpy.sqrt(n * arrhenius)))
         
         
         

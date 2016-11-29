@@ -11,6 +11,5 @@ wz = Werkzeug()
 ex = "n"
 step = 0
 while ex!="q":
-    wz.run(step)
-    step+=1
+    wz.run()
     ex = input("quit?")

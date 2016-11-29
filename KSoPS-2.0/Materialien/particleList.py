@@ -30,6 +30,18 @@ class ParticleList(object):
             N += particle.getN()    
         return N
     
+    def getMeanPosition(self):
+        x = 0
+        y = 0
+        for particle in self.Liste:
+            x += particle.getX() * particle.getN()
+            y += particle.getY() * particle.getN()  
+        meanX = x / ( 1.0 * len(self.Liste) * self.getAllN() )
+        meanY = y / ( 1.0 * len(self.Liste) * self.getAllN() )
+        
+        return meanX, meanY
+    
+    
     def moveAll(self, dx, dy):
         for cluster in self.Liste:
             cluster.setX(cluster.getX() + dx)
@@ -47,9 +59,9 @@ class ParticleList(object):
         return [x for x in self.Liste if x in liste]   
     
     def removeParticle(self, particle):
-        if particle in self.Liste:
-            return self.Liste.pop(self.Liste.index(particle))  
-        return None             
+        assert(particle in self.Liste), 'removeParticle: particle not in Liste'
+        self.Liste.pop(self.Liste.index(particle))
+        assert(particle not in self.Liste), 'removeParticle: removal was not sucessful'        
         
         
     def removeParticles(self, particle_list):
@@ -72,9 +84,14 @@ class ParticleList(object):
         self.Liste.append(par)
 
                 
-    def sortList(self, attribute = 'N', reverse=True):
+    def sortList(self, attribute = 'N', bigfirst=True):
         # sort the list after the attribute beginning with 1=big, 0=small
-        self.Liste.sort(key = operator.attrgetter(attribute), reverse = reverse)
+        self.Liste.sort(key = operator.attrgetter(attribute), reverse = bigfirst)
+        if len(self.Liste) >= 2:
+            if bigfirst == True:
+                assert(self.Liste[0].getN()>=self.Liste[1].getN()), "sortList: sort function not working"
+            else:
+                assert(self.Liste[0].getN()<=self.Liste[1].getN()), "sortList: sort function not working"
         return self.Liste
         
     def list(self, mylist):
@@ -82,6 +99,10 @@ class ParticleList(object):
         Wrapper for python lists
         """
         self.Liste = mylist
+        
+    def getUniformREv(self):
+        """ Only for elements of coalescenceList """
+        return (self.Liste[0].getREv() - self.Liste[0].getR())
         
     def GET(self):
         """

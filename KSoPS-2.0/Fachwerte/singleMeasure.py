@@ -23,8 +23,8 @@ class SingleMeasure(object):
         
         
     def adatomEvent(self, param, val):
-        if param in self.adatom:
-            self.adatom[param] += val
+        assert (param in self.adatom), "adatomEvent: param not a valid event"
+        self.adatom[param] += val
             
     def getadatomEvent(self, param):
         if param in self.adatom:

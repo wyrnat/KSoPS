@@ -5,6 +5,7 @@ Created on 15.10.2015
 '''
 
 import numpy
+import math
 
 class Particle(object):
     '''
@@ -50,31 +51,39 @@ class Particle(object):
     """ Setter """
     
     def setX(self, x):
+        assert(not math.isnan(x)), 'setX: input is not a number'
         self.x = x
     
     def setY(self, y):
+        assert(not math.isnan(y)), 'setY: input is not a number'
         self.y = y
         
     def setR(self, r):
+        assert(not math.isnan(r)), 'setR: input is not a number'
+        assert(r > 0), 'setR: r is negative'
         self.r = r
         
     def setREv(self, rev):
+        assert(not math.isnan(rev)), 'setREv: input is not a number'
+        assert(rev > 0), 'setREv: rev is negative'
         self.rev = rev 
         
     def setMaster (self, newmaster):
+        assert (self != newmaster), 'setMaster: cluster will be its own master'
+        assert (self != newmaster.getMaster()), 'setMaster: newMaster is also slave to this cluster'
+        assert (self.N <= newmaster.getN()), 'setMaster: New Master is smaller than this cluster'
         self.master = newmaster
-                
-    def removeMaster(self, particle_list):
-        self.master = None              
+        
+    def deleteMaster(self):
+        assert(self.master != None), 'deleteMaster: Master is already (NoneType)'
+        self.master = None       
          
     def atomFlow(self, n):
-        if self.N + n < 0:
-            return False
-        else:
-            self.N += n
-            return True
+        assert (n > - self.N), 'atomFLow: number of remaining atoms negative'
+        self.N += n
             
     def setSurfaceN(self, surfaceN):
+        assert(surfaceN > 0), 'setSurfaceN: surfaceN is negative'
         self.surfaceN = surfaceN
         
 

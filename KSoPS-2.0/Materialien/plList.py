@@ -5,6 +5,7 @@ Created on 18.03.2016
 '''
 
 from particleList import ParticleList
+from Fachwerte.particle import Particle
 
 class PlList(object):
     '''
@@ -23,9 +24,10 @@ class PlList(object):
         """
         create new particleList with one adatom
         """
+        assert(type(atom)==Particle), 'addAdatom: atom not of type (Particle)'
         self.Liste.append(ParticleList([atom]))
         
-    def removePl(self, pl, empty = False):
+    def removePl(self, pl):
         """
         replace a particle list to be removed with empty particle list
         """
@@ -44,10 +46,12 @@ class PlList(object):
         """
      
         for liste in self.Liste:
-            if liste.removeParticle(cluster) != None:
+            if cluster in liste.GET():
+                liste.removeParticle(cluster)
                 if liste.clusterNumber() == 0:
                     self.removePl(liste)
                 return
+        assert(False), 'removeCluster: cluster not found in coalescenceList'
             
     def findCluster(self, cluster):
         """
@@ -57,10 +61,19 @@ class PlList(object):
             if cluster in liste.GET():
                 return liste
         
-        return None
+        assert(False), 'FindCluster: cluster was not found'
     
     def getListbyIndex(self, index):
         return self.Liste[index]
+    
+    def getIndex(self, pl):
+        return self.Liste.index(pl)
+    
+    def getIndexByCluster(self, cluster):
+        list = self.findCluster(cluster)
+        index = self.getIndex(list)
+        return index
+        
         
     def clearList(self):
         clear_list = [liste for liste in self.Liste if liste.clusterNumber()==0]
@@ -71,9 +84,13 @@ class PlList(object):
         """
         Sorts Liste starting the particlelist with most atoms
         """
-        self.Liste.sort(key = lambda pl: pl.getAllN, reverse=bigfirst)
+        self.Liste.sort(key = lambda pl: pl.getAllN(), reverse=bigfirst)
         if len(self.Liste)>=2:
-            assert(self.Liste[0].getAllN()>=self.Liste[1].getAllN())
+            if bigfirst == True:
+                assert(self.Liste[0].getAllN()>=self.Liste[1].getAllN()), 'sortList failed'
+            else:
+                assert(self.Liste[0].getAllN()<=self.Liste[1].getAllN()), 'sortList failed'
+            
         
     def GET(self):
         return list(self.Liste)

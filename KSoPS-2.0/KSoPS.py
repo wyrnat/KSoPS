@@ -5,26 +5,32 @@ Created on 25.11.2016
 '''
 
 from Werkzeug.KSoPSWerkzeug import Werkzeug
+from Services.ioService import IOService
 
 
-myinitvals = {'measure_steps': 50,      #measuring after *n* ms 
-                      'area': 5,              #surface width in nm
-                      'radius': 0.144,              #nm
-                      'T': 273,                 #K
-                      'lattice_const': 0.543,   #nm
-                      'growth_rate': 0.005,     #nm/ms
-                      'flow_e': 10,
-                      'diffusion_e': 0.6,
-                      'diffusion_exponent': -0.8,    #diffusion prop to N^de
-                      'no_clustering': False,   #adatoms clustering 2dim on surface
-                      'final_thickness': 10   #nm
+myinitvals = {'measure_steps': 1,               #measuring after *n* ms 
+              'area': 200,                      #surface width in nm
+              'radius': 0.144,                  #atom radius in nm
+              'lattice_const': 0.543,           #substrat lattice constant in nm
+              'T': 300,                         #Temperature in K
+              'growth_rate': 0.0000438,         #thickness growth rate in nm/ms
+              'flow_e': 0.55,                   #aggregation potential in eV
+              'diffusion_e': 0.55,              #diffusion potential in eV
+              'diffusion_exponent': -0.8,       #diffusion prop to N^de
+              'final_thickness': 10             #nm
                     }
 
 myWerkzeug = Werkzeug(myinitvals)
+Measure = myWerkzeug.measure
+
+safeServ = IOService()
 
 thickness = 0
+ex = 'n'
 
-while (thickness < myWerkzeug.measure.getThickness(-1)):
+while (thickness < myinitvals['final_thickness']) and (ex!="q"):
     myWerkzeug.run()
-    print myWerkzeug.measure.getThickness(-1)
-
+    myWerkzeug.showSimulation(-1)
+    safeServ.saveToTXT(Measure, "test.txt")
+    thickness = myWerkzeug.measure.getThickness(-1)
+    ex = input("quit?")

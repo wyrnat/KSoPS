@@ -29,10 +29,11 @@ class Measure(object):
         self.d_list = [[0]]
         
         self.dist_ww = [{}]
+        self.meancluster_properties = [[]]
         self.cluster_properties = [[]] # [x,y,r,rev]
         
     def save(self, thickness, radius, distance, cluster_density, r_list,
-             d_list, dist_ww, cluster_plist):
+             d_list, dist_ww, meancluster_plist, cluster_plist):
         
         
         self.thickness.append(thickness)
@@ -42,13 +43,12 @@ class Measure(object):
         self.r_list.append(r_list)
         self.d_list.append(d_list)
         self.dist_ww.append(dist_ww)
+        self.meancluster_properties.append(meancluster_plist)
         self.cluster_properties.append(cluster_plist)
         
     def getThickness(self, index):
         return self.thickness[index]
     
-    def getRadius(self, index):
-        pass
         
     def getIndexWithThickness(self, thethickness):
         #if (thethickness < 0) or (thethickness > self.thickness[-1]):
@@ -58,8 +58,13 @@ class Measure(object):
         result = difference.index(min_diff)
         return result
     
+    def getMeanClusterProperties(self):
+        return self.meancluster_properties
+    
     def getClusterProperties(self):
         return self.cluster_properties
+    
+    
     
     
         

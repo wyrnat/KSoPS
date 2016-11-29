@@ -17,14 +17,14 @@ from UI.pygameUI import PygameUI
 
 class Werkzeug(object):
     '''
-    Regelt den Ablauf der Monte-Carlo Simulation
+    Head Object of a single Simulation
     '''
 
 
     def __init__(self, myInitvals = None):
         '''
-        Initialisiert die Services und uebernimmt
-        die GUI Parameter
+        Initializes needed Services
+        creates global data objects
         '''
         
         self.initVal = InitVals(myInitvals)
@@ -45,31 +45,50 @@ class Werkzeug(object):
         
         #creates Adatoms and add them to adatomList
         self.sputter(self.initVal, self.adatomList)
+        
+        print "sputter"
+        print self.adatomList.GET()
   
         #WW of hits on surface or clusters
-        self.adatomHits(self.initVal, self.adatomList, self.adatomWWList, self.clusterList, self.coalescenceList ,smeasure)        
+        self.adatomHits(self.initVal, self.adatomList, self.clusterList, self.coalescenceList ,smeasure) 
+        
+        
         
         #sort list starting with the biggest cluster group, move those groups
         self.coalescenceList.sortList()
         self.diffusion(self.initVal, self.clusterList, self.coalescenceList, smeasure)
         
+        print "diffusion"
+        print len(self.coalescenceList.GET()) 
+        print len(self.clusterList.GET()) 
+        
         #coalescence between all clusters
         self.coalescence(self.initVal, self.clusterList, self.coalescenceList, smeasure)
-        self.coalescenceList.clearList()        
+        print "before clearing"
+        print len(self.coalescenceList.GET()) 
+        print len(self.clusterList.GET())
+        self.coalescenceList.clearList()
+        
+        print "coalescence"
+        print len(self.coalescenceList.GET()) 
+        print len(self.clusterList.GET())     
         
         #processes within cloalescencelist clusters
-        self.atomFlow(self.initVal, self.clusterList, self.coalescenceList)
+        self.atomFlow(self.initVal, self.clusterList, self.coalescenceList, smeasure)
+        
+        print "atomflow"
+        print len(self.coalescenceList.GET()) 
+        print len(self.clusterList.GET()) 
         
         # calibrate cluster distances
-        self.calibrateDistance(self.coalescenceList)
+        self.calibrateDistance(self.initVal, self.clusterList, self.coalescenceList)
         
         
         #measures the actual state
         if ((self.simulation_step-1) % self.initVal.getValue("measure_steps") == 0):
-            self.measurement(self.initVal, smeasure, self.measure, self.clusterList, self.simulation_step)
+            self.measurement(self.initVal, smeasure, self.measure, self.clusterList, self.coalescenceList, self.simulation_step)
         
-        # shows the simulation
-        self.showSimulation(self.initVal, self.measure, self.simulation_step)
+
         
         
     """ *** Methods *** """
@@ -86,66 +105,70 @@ class Werkzeug(object):
             adatom = pServ.createAdatom(initval)
             adatomList.addParticle(adatom)
             
-    def adatomHits(self, initval, adatomList, adatomWWList, clusterList, coalescenceList, smeasure):
+    def adatomHits(self, initval, adatomList, clusterList, coalescenceList, smeasure):
         """
         Checks if particles from the adatomList collides with particles from the clusterList
         """
         intServ = InteractionService()
-        intServ.adatomOnCluster(initval, adatomList, adatomWWList, clusterList, coalescenceList, smeasure)
+        intServ.adatomOnCluster(initval, adatomList, clusterList, coalescenceList, smeasure)
         
-#     def adatomWW(self, initval, adatomWWList, clusterList, coalescenceList, smeasure):
-#         intServ = InteractionService()
-#         intServ.adatomWW(initval, adatomWWList, clusterList, coalescenceList, smeasure)
         
     def diffusion(self, initval, clusterList, coalescenceList, smeasure):
+        """
+        simulates brownian cluster motion with regard of boarders of the area
+        """
         partServ = ParticleService()
         for pl in coalescenceList.GET():
             partServ.ClusterDiffusion(self.initVal, pl)
             
     def coalescence(self, initval, clusterList, coalescenceList, smeasure):
+        """
+        Searcing for overlapping clusters
+        Fusing particleList
+        """
         intServ = InteractionService()
         intServ.coalescence(initval, clusterList, coalescenceList, smeasure)       
         
         
-    def atomFlow(self, initval, clusterList, coalescenceList):
+    def atomFlow(self, initval, clusterList, coalescenceList, smeasure):
+        """
+        Checks if master value is correct
+        let atoms aggregate from slave to master
+        """
         partServ = ParticleService()
+        clusterList.sortList(bigfirst=False)
         for cluster in clusterList.GET():
-            partServ.atomFlow(initval, cluster, clusterList)
-        partServ.deleteEmptyClusters(clusterList, coalescenceList)
+            partServ.atomFlow(initval, cluster, clusterList, coalescenceList, smeasure)
+        coalescenceList.clearList()
         
+        #refresh cluster parameter
         for cluster in clusterList.GET():
             partServ.refreshCluster(initval, cluster, coalescenceList)
         
     
-    def calibrateDistance(self, coalescenceList):
+    def calibrateDistance(self, initval, clusterList, coalescenceList):
+        """
+        Calibrates intern for every particleList in coalescenceList
+        Search for overlap of particleList and when True, deplete a complete particleList
+        """
         intServ = InteractionService()
-        for pl in coalescenceList.GET():
-            intServ.calibrateCluster(pl)
+        coalescenceList.sortList()
+        
+        #calibrate for each particleList in coalescenceList        
+        intServ.calibrateIntern(initval, coalescenceList)
+        #calibrate for all clusters
+        intServ.calibrateCoalescence(initval, clusterList, coalescenceList)
             
             
-    def measurement(self, initval, smeasure, measure, clusterList, simulation_step):
+    def measurement(self, initval, smeasure, measure, clusterList, coalescenceList, simulation_step):
         measServ = MeasureService()
-        radius, distance, r_list, d_list, cluster_plist = measServ.getMeanValues(clusterList)
+        radius, distance, cluster_density, r_list, d_list, meancluster_plist = measServ.getMeanValues(initval, clusterList, coalescenceList)
+        cluster_plist = measServ.getclusterPropList(clusterList)
         dist_ww = smeasure.GET()
         thickness = measServ.getThickness(initval, simulation_step)
-        cluster_density = len(clusterList)/float(initval.getValue('area')**2)
         
-        self.measure.save(thickness, radius, distance, cluster_density, r_list, d_list, dist_ww, cluster_plist)
+        self.measure.save(thickness, radius, distance, cluster_density, r_list, d_list, dist_ww, meancluster_plist, cluster_plist)
         
-    def showSimulation(self, initval, measure, step):
-        self.screen.draw(initval, measure, step)
-        
-        
-        #         print "***** Sputter"
-#         coalescenceNumber = []
-#         coalescenceNumber = []
-#         positionNumber = []
-#         for mylist in self.coalescenceList.GET():
-#             coalescenceNumber.append(mylist.GET())
-#         for particle in self.clusterList.GET():
-#             positionNumber.append(str(round(particle.x,3))+";"+str(round(particle.y,3)))
-#         print "CoalescenceList: ",coalescenceNumber
-#         print "ClusterList: ",self.clusterList.GET()
-#         print "clusterPos: ", positionNumber
-#         print "AdatomWWList: ",len(self.adatomWWList.GET())
+    def showSimulation(self, step):
+        self.screen.draw(self.initVal, self.measure.getClusterProperties(), step)
         

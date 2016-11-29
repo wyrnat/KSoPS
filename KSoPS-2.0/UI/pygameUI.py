@@ -25,15 +25,21 @@ class PygameUI(object):
         pygame.init()
         self.myfont = pygame.font.SysFont("monospace", 15)
         self.area = initval.getValue('area')
-        self.mult = 100
+        self.mult = numpy.round(800/(self.area))
         self.screen = pygame.display.set_mode((self.area*self.mult,self.area*self.mult))
         
-    def draw(self, initval, measurement, step):
+    def draw(self, initval, cluster_plist, step):
         self.screen.fill(black)
 
-        for values in measurement.getClusterProperties()[step]:
+        for values in cluster_plist[step]:
+            x = values[0]
+            y = values[1]
+            r = values[2]
+            rev = values[3]
+            N = values[4]
+            masterN = values[5]
             
-            if values[2] == initval.getValue('radius'):
+            if N == 1:
                 color = gold
             else:
                 color = white
@@ -41,17 +47,17 @@ class PygameUI(object):
                 
             pygame.draw.circle(self.screen,
                                 color,
-                                (int(numpy.round(values[0]*self.mult + self.area*self.mult/2.)), int(numpy.round(values[1]*self.mult + self.area*self.mult/2.)) ),
-                                int(numpy.ceil(values[2]*self.mult))
+                                (int(numpy.ceil(x*self.mult + self.area*self.mult/2.)), int(numpy.ceil(y*self.mult + self.area*self.mult/2.)) ),
+                                int(numpy.ceil(r*self.mult))
                                )
             pygame.draw.circle(self.screen,
                                red,
-                               (int(numpy.round(values[0]*self.mult) + self.area*self.mult/2.), int(numpy.round(values[1]*self.mult + self.area*self.mult/2.))),
-                               int(numpy.floor(values[3]*self.mult)),
+                               (int(numpy.ceil(x*self.mult) + self.area*self.mult/2.), int(numpy.ceil(y*self.mult + self.area*self.mult/2.))),
+                               int(numpy.ceil(rev*self.mult)),
                                1
                                ) 
-            label = self.myfont.render(str(values[4])+";"+str(values[5]), 1, (0,255,0))
-            self.screen.blit(label,(int(numpy.round(values[0]*self.mult) + self.area*self.mult/2. - values[2]*self.mult/2.), int(numpy.round(values[1]*self.mult + self.area*self.mult/2. - values[2]*self.mult/2.))))
+            label = self.myfont.render(str(N)+";"+str(masterN), 1, (0,255,0))
+            self.screen.blit(label,(int(numpy.ceil(x*self.mult) + self.area*self.mult/2. - r*self.mult/2.), int(numpy.ceil(y*self.mult + self.area*self.mult/2. - r*self.mult/2.))))
             
         pygame.display.flip()
 

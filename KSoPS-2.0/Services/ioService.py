@@ -11,7 +11,7 @@ class IOService(object):
     '''
 
 
-    def __init__(self, params):
+    def __init__(self):
         '''
         Constructor
         '''
@@ -36,13 +36,17 @@ class IOService(object):
             
     def saveToTXT(self, measure, file_name):
         myfile = open(file_name, 'w+')
-        myfile.write("time   thickness   Radius   Distance\n")
-        
+        myfile.write("Time\t")
+        myfile.write("Thickness\t")
+        myfile.write("Radius\t")
+        myfile.write("Distance\t")
+        myfile.write("Density\n")
         for i, thick in enumerate(measure.thickness):
-            myfile.write(str(i/1000.)+"   "
-                         +thick+"   "
-                         +measure.radius[i]+"   "
-                         +measure.distance[i]+"\n"
+            myfile.write(str(i/1000.)+"\t"
+                         +str(thick)+"\t"
+                         +str(measure.radius[i])+"\t"
+                         +str(measure.distance[i])+"\t"
+                         +str(measure.cluster_density[i])+"\n"
                          )
         myfile.close()
         

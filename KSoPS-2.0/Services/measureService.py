@@ -5,32 +5,31 @@ Created on 04.11.2015
 '''
 
 import numpy
+from Fachwerte.particle import Particle
+from Materialien.particleList import ParticleList
+from Services.particleService import ParticleService
 
 class MeasureService(object):
     '''
     classdocs
     '''
-
-    def getClusterParameter(self, cluster):
-        """
-        Returns array of the cluster parameter pos, r and rev
-        """
-        return [cluster.getX(), cluster.getY(), cluster.getR(), cluster.getREv(), cluster.getN()]
     
     
-    def getMeanValues(self, clusterList, coalescenceList):
+    def getMeanValues(self, initval, clusterList, coalescenceList):
         r = 0
         d = 0
         r_list = []
         d_list = []
-        cluster_plist = []
+        meancluster_plist = []
+        
+        representiveList = self.getRepresentingCluster(initval, coalescenceList)
 
-        for cluster in clusterList.GET():
+        for cluster in representiveList.GET():
             # Radius
             r += cluster.getR()
             
             # Distance
-            d_part = self.findClosestCluster(cluster, clusterList, coalescenceList)
+            d_part = self.findClosestCluster(cluster, representiveList)
             d += d_part
             
             # Radius List
@@ -40,23 +39,55 @@ class MeasureService(object):
             d_list.append(d_part)
             
             # Cluster Parameter List
-            cluster_plist.append(self.getClusterParameter(cluster))
-            
-        return r/clusterList.clusterNumber() , d/clusterList.clusterNumber() ,  r_list , d_list, cluster_plist
-                
-    def getThickness(self, initval, clusterList):
-        N = clusterList.getAllN()
-        area = initval.getValue('area')
-        r = initval.getValue('radius')
+            meancluster_plist.append(self.getClusterParameter(cluster))
         
-        thickness = 4 * numpy.sqrt(2) * N * r**3 / area**2
+        meanR = r/representiveList.clusterNumber()
+        meanD = d/representiveList.clusterNumber()
+        CDensity = representiveList.clusterNumber()/(1.0*initval.getValue('area')**2)
+            
+        return meanR , meanD , CDensity ,  r_list , d_list, meancluster_plist
+    
+    def getclusterPropList(self, clusterList):
+        cluster_plist = []
+        for cluster in clusterList.GET():
+            cluster_plist.append(self.getClusterParameter(cluster))
+        return cluster_plist
+            
+    
+    def getRepresentingCluster(self, initval, coalescencelist):
+        partServ = ParticleService()
+        representiveList = ParticleList()
+        
+        for pl in coalescencelist.GET():
+            x, y = pl.getMeanPosition()
+            par = Particle(x,y,r=1,rev=1)
+            par.atomFlow(pl.getAllN()-1)
+            partServ.setClusterR(initval, par)
+            partServ.setClusterRev(initval, par, par.getN())
+            
+            representiveList.addParticle(par)
+        return representiveList
+        
+                
+    def getThickness(self, initval, simulation_step):
+        thickness = simulation_step * initval.getValue('growth_rate')
         return thickness  
     
-    def findClosestCluster(self, cluster, clusterList, coalescenceList):
+    def findClosestCluster(self, cluster, clusterList):
         temp_liste = clusterList.GET()
-        pl = coalescenceList.findCluster(cluster)
-        temp_liste.removeParticles(pl)
+        temp_liste.pop(temp_liste.index(cluster))
         x_list = numpy.array([particle.getX() for particle in temp_liste])
         y_list = numpy.array([particle.getY() for particle in temp_liste])
         distance_list = numpy.sqrt( (cluster.getX()-x_list)**2 + (cluster.getY()-y_list)**2 )   
         return numpy.amin(distance_list)
+    
+    def getClusterParameter(self, cluster):
+        """
+        Returns array of the cluster parameter pos, r and rev
+        """
+        
+        masterN = 0
+        # check if cluster has a master
+        if cluster.getMaster() != None:
+            masterN = cluster.getMaster().getN()
+        return [cluster.getX(), cluster.getY(), cluster.getR(), cluster.getREv(), cluster.getN(), masterN]
