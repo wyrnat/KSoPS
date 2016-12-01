@@ -13,7 +13,8 @@ from Services.particleService import ParticleService
 from Services.interactionService import InteractionService
 from Services.initValService import InitValService
 from Services.measureService import MeasureService
-from UI.pygameUI import PygameUI
+
+from time import time
 
 class Werkzeug(object):
     '''
@@ -33,60 +34,64 @@ class Werkzeug(object):
         self.clusterList = particleList.ParticleList()
         self.coalescenceList = plList.PlList()
         self.measure = Measure()
-        self.screen = PygameUI(self.initVal)
         
         #count number of simulation steps
         self.simulation_step = 0
+        self.smeasure = SingleMeasure()      #instance of measurement for one measure period
         
     def run(self):
         
-        smeasure = SingleMeasure()      #instance of measurement for one period
+        ground = time()
+        
         self.simulation_step += 1       #increase the step counter
         
         #creates Adatoms and add them to adatomList
         self.sputter(self.initVal, self.adatomList)
         
-        print "sputter"
-        print self.adatomList.GET()
+        Tsputter = time()
   
         #WW of hits on surface or clusters
-        self.adatomHits(self.initVal, self.adatomList, self.clusterList, self.coalescenceList ,smeasure) 
+        self.adatomHits(self.initVal, self.adatomList, self.clusterList, self.coalescenceList ,self.smeasure)
         
-        
+        Thits = time()
         
         #sort list starting with the biggest cluster group, move those groups
         self.coalescenceList.sortList()
-        self.diffusion(self.initVal, self.clusterList, self.coalescenceList, smeasure)
+        self.diffusion(self.initVal, self.clusterList, self.coalescenceList, self.smeasure)
         
-        print "diffusion"
-        print len(self.coalescenceList.GET()) 
-        print len(self.clusterList.GET()) 
+        Tdiffusion = time()
         
         #coalescence between all clusters
-        self.coalescence(self.initVal, self.clusterList, self.coalescenceList, smeasure)
-        print "before clearing"
-        print len(self.coalescenceList.GET()) 
-        print len(self.clusterList.GET())
+        self.coalescence(self.initVal, self.clusterList, self.coalescenceList, self.smeasure)
         self.coalescenceList.clearList()
         
-        print "coalescence"
-        print len(self.coalescenceList.GET()) 
-        print len(self.clusterList.GET())     
+        Tcoalescence = time()
         
         #processes within cloalescencelist clusters
-        self.atomFlow(self.initVal, self.clusterList, self.coalescenceList, smeasure)
+        self.atomFlow(self.initVal, self.clusterList, self.coalescenceList, self.smeasure)
+        self.coalescenceList.clearList()
         
-        print "atomflow"
-        print len(self.coalescenceList.GET()) 
-        print len(self.clusterList.GET()) 
+        Tflow = time()
         
         # calibrate cluster distances
         self.calibrateDistance(self.initVal, self.clusterList, self.coalescenceList)
         
+        Tcalibrate = time()
         
         #measures the actual state
         if ((self.simulation_step-1) % self.initVal.getValue("measure_steps") == 0):
-            self.measurement(self.initVal, smeasure, self.measure, self.clusterList, self.coalescenceList, self.simulation_step)
+            self.measurement(self.initVal, self.smeasure, self.measure, self.clusterList, self.coalescenceList, self.simulation_step)
+            #restart event measurement
+            self.smeasure = SingleMeasure()
+            
+        Tmeasure = time()
+        
+        list = [(Tsputter - ground), (Thits - Tsputter),
+                (Tdiffusion - Thits), (Tcoalescence - Tdiffusion),
+                (Tflow - Tcoalescence), (Tcalibrate - Tflow),
+                (Tmeasure - Tflow), (Tmeasure-ground)]
+        
+        return list
         
 
         
@@ -162,13 +167,13 @@ class Werkzeug(object):
             
     def measurement(self, initval, smeasure, measure, clusterList, coalescenceList, simulation_step):
         measServ = MeasureService()
-        radius, distance, cluster_density, r_list, d_list, meancluster_plist = measServ.getMeanValues(initval, clusterList, coalescenceList)
+        radius, distance, cluster_density, r_list, d_list = measServ.getMeanValues(initval, clusterList, coalescenceList)
         cluster_plist = measServ.getclusterPropList(clusterList)
         dist_ww = smeasure.GET()
-        thickness = measServ.getThickness(initval, simulation_step)
+        #norm dist_ww on measure_steps
+        for i in dist_ww:
+            dist_ww[i] = dist_ww[i]/(1.0*initval.getValue('measure_steps'))
+        time, thickness = measServ.getTimeThickness(initval, simulation_step)
         
-        self.measure.save(thickness, radius, distance, cluster_density, r_list, d_list, dist_ww, meancluster_plist, cluster_plist)
-        
-    def showSimulation(self, step):
-        self.screen.draw(self.initVal, self.measure.getClusterProperties(), step)
+        self.measure.save(time, thickness, radius, distance, cluster_density, r_list, d_list, dist_ww, cluster_plist)
         

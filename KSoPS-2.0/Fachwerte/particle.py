@@ -45,7 +45,7 @@ class Particle(object):
     def getN(self):
         return self.N
     
-    def getsurfaceN(self):
+    def getSurfaceN(self):
         return self.surfaceN
     
     """ Setter """
@@ -79,10 +79,12 @@ class Particle(object):
         self.master = None       
          
     def atomFlow(self, n):
+        assert (type(n)==int), "atomFlow: n is not Integer"
         assert (n > - self.N), 'atomFLow: number of remaining atoms negative'
         self.N += n
             
     def setSurfaceN(self, surfaceN):
+        assert (type(surfaceN)==int), "setSurfaceN: surfaceN is not Integer"
         assert(surfaceN > 0), 'setSurfaceN: surfaceN is negative'
         self.surfaceN = surfaceN
         

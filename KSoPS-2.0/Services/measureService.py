@@ -20,16 +20,17 @@ class MeasureService(object):
         d = 0
         r_list = []
         d_list = []
-        meancluster_plist = []
+        #meancluster_plist = []
         
-        representiveList = self.getRepresentingCluster(initval, coalescenceList)
+        #REPRESENTATIVELIST
+        #representiveList = self.getRepresentingCluster(initval, coalescenceList)
 
-        for cluster in representiveList.GET():
+        for cluster in clusterList.GET():
             # Radius
             r += cluster.getR()
             
             # Distance
-            d_part = self.findClosestCluster(cluster, representiveList)
+            d_part = self.findClosestCluster(cluster, clusterList)
             d += d_part
             
             # Radius List
@@ -38,14 +39,14 @@ class MeasureService(object):
             # Distance List
             d_list.append(d_part)
             
-            # Cluster Parameter List
-            meancluster_plist.append(self.getClusterParameter(cluster))
+            # Cluster Parameter List (REPRESENTAVIELIST)
+            #meancluster_plist.append(self.getClusterParameter(cluster))
         
-        meanR = r/representiveList.clusterNumber()
-        meanD = d/representiveList.clusterNumber()
-        CDensity = representiveList.clusterNumber()/(1.0*initval.getValue('area')**2)
-            
-        return meanR , meanD , CDensity ,  r_list , d_list, meancluster_plist
+        meanR = r/clusterList.clusterNumber()
+        meanD = d/clusterList.clusterNumber()
+        CDensity = clusterList.clusterNumber()/(1.0*initval.getValue('area')**2)*10**6   #cluster/micrometer**2
+
+        return meanR , meanD , CDensity ,  r_list , d_list #, meancluster_plist
     
     def getclusterPropList(self, clusterList):
         cluster_plist = []
@@ -69,17 +70,21 @@ class MeasureService(object):
         return representiveList
         
                 
-    def getThickness(self, initval, simulation_step):
+    def getTimeThickness(self, initval, simulation_step):
         thickness = simulation_step * initval.getValue('growth_rate')
-        return thickness  
+        time = simulation_step * initval.getValue('step_size') / 1000.0
+        return time, thickness  
     
     def findClosestCluster(self, cluster, clusterList):
         temp_liste = clusterList.GET()
         temp_liste.pop(temp_liste.index(cluster))
         x_list = numpy.array([particle.getX() for particle in temp_liste])
         y_list = numpy.array([particle.getY() for particle in temp_liste])
-        distance_list = numpy.sqrt( (cluster.getX()-x_list)**2 + (cluster.getY()-y_list)**2 )   
-        return numpy.amin(distance_list)
+        distance_list = numpy.sqrt( (cluster.getX()-x_list)**2 + (cluster.getY()-y_list)**2 )
+        if len(distance_list) == 0:
+            return 0
+        else:   
+            return numpy.amin(distance_list)
     
     def getClusterParameter(self, cluster):
         """

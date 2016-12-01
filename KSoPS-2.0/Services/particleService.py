@@ -10,6 +10,7 @@ from scipy import integrate
 from Fachwerte.particle import Particle
 from Services.initValService import InitValService
 
+
 class ParticleService(object):
     '''
     classdocs
@@ -85,59 +86,56 @@ class ParticleService(object):
     """ Diffusion """
             
     def ClusterDiffusion(self, initval, pl):
-        if pl.clusterNumber() == 0:
-            return False
+        assert(pl.clusterNumber() != 0), 'ClusterDiffusion: No clusters in this list'
         
         rndm = random.random()
         move = pl.GET()[0].getREv() - pl.GET()[0].getR()
-        #create Gaussian      
         
         #if movement is significant
-        if move > initval.getValue('radius'):
+        if move > initval.getValue('radius')*0.01:
             G = numpy.random.normal(0,move/3.464)
             dx = G * numpy.sin(2 * numpy.pi * rndm)
             dy = G * numpy.cos(2 * numpy.pi * rndm)
-            dx, dy = self.checkBorders(initval, pl, dx, dy)
             pl.moveAll(dx, dy)
-            return True
-        #otherwise check only for particle on area
-        else:
-            dx, dy = self.checkBorders(initval, pl, 0,0)
-            pl.moveAll(dx,dy)
-            return False
         
-    def checkBorders(self, initval, pl, dx, dy):
+        
+        ndx, ndy = self.checkBorders(initval, pl)
+        pl.moveAll(ndx,ndy)
+        
+    def checkBorders(self, initval, plist):
         """
         Check for cluster movement, if it will defy the area borders.
         shortens dx, dy if necessary
         """
-        area = initval.getValue('area')
+        boarder = initval.getValue('area')/2.
+        pl = plist.GET()
         
         #the wanted translation
-        ndx = dx
-        ndy = dy
+        ndx = 0
+        ndy = 0
+        left = [(cluster.getX()-cluster.getR()) for cluster in pl]#.sort()
+        right = [(cluster.getX()+cluster.getR()) for cluster in pl]#.sort(reverse=True)
+        top = [(cluster.getY()-cluster.getR()) for cluster in pl]#.sort()
+        bottom = [(cluster.getY()+cluster.getR()) for cluster in pl]#.sort(reverse=True)
+        left.sort()
+        right.sort(reverse=True)
+        top.sort()
+        bottom.sort(reverse=True)
         
-        for cluster in pl.GET():
-            R = cluster.getR()
-            x = cluster.getX()
-            y = cluster.getY()
-            if (abs(x + ndx) + R > area /2.):
-                if (x+ndx) > 0:
-                    ndx = area/2. - x - R
-                else:
-                    ndx = -area/2. - x + R
-                
-            if abs(y + ndy) + R > area /2.:
-                if (y+ndy) > 0:
-                    ndy = area/2. - y - R
-                else:
-                    ndy = -area/2. - y + R
-                
-        return ndx , ndy
-
-
-
-
+        if left[0]<-boarder:
+            ndx = -boarder-left[0]
+        if right[0]>boarder:
+            ndx = boarder-right[0]
+        if top[0]<-boarder:
+            ndy = -boarder-top[0]
+        if bottom[0]>boarder:
+            ndy = boarder-bottom[0]
+            
+        return ndx, ndy
+        
+        
+        
+        
 
 
 
@@ -167,9 +165,9 @@ class ParticleService(object):
         sigma = (REv - R)/3.464
         
         #round value to prevent overflow 
-        if (REv - R) < initval.getValue('radius'):
+        if (REv - R) < initval.getValue('radius')*0.01:
             #define a step function
-            result = lambda r: 1.0*(r<=R or r>=-R)
+            result = lambda r: 1.0*(r<=R and r>=-R)
             return result
         else:
             c = numpy.sqrt(2*numpy.pi)
@@ -179,22 +177,21 @@ class ParticleService(object):
             
             #calculate the gauss with integration over the sphere
             result = lambda r: ( integrate.quad(dist, r-R, r+R, epsrel = 0.01) )[0] * ( (REv-R)/initval.getValue('lattice_const'))**2
-            #print "prob_max: "+ str(result(0))
             return result
         
     def calculateOverlap(self, cluster1, cluster2, initval):
         
         dist1 = self.convolutedGaussFunction(cluster1, initval)
         dist2 = self.convolutedGaussFunction(cluster2, initval)
+        REv1 = cluster1.getREv()
+        REv2 = cluster2.getREv()
         distance = numpy.sqrt((cluster1.getX()-cluster2.getX())**2 + (cluster1.getY()-cluster2.getY())**2)
+        ThreeD_Factor = numpy.arctan(REv1/distance) * numpy.arctan(REv2/distance) / numpy.pi**2
         
-        dist = lambda r: dist1(r)*dist2(r-distance)
+        dist = lambda r: dist1(r)*dist2(r-distance) * ThreeD_Factor
         
-        prohability = integrate.quad(dist, -cluster2.getREv(), distance+cluster1.getREv(), epsrel = 0.01)
-#         print "***calculateOverlap***"
-#         print "r: "+str(cluster1.getREv())+", "+str(cluster2.getREv())
-#         print "distance: "+str(distance)
-#         print"prohability: "+str(prohability[0])
+        prohability = integrate.quad(dist, distance-REv2, REv1, epsrel = 0.01)
+
         return prohability
         
         
@@ -223,11 +220,8 @@ class ParticleService(object):
             cluster.deleteMaster()
             return
         
-        flow = initServ.getAtomFlow(initval, cluster.getR())
+        flow = initServ.getAtomFlow(initval, cluster.getSurfaceN())
         
-        print "AtomFLow"
-        print "N: "+str(cluster.getN())
-        print "flow: "+str(flow)
         
         if flow == 0:
             return
@@ -250,18 +244,19 @@ class ParticleService(object):
         self.setClusterRev(initval, cluster, allN)
         
     def setClusterR(self, initval, cluster):
+        initServ = InitValService()
         if cluster.getN() < 2:
             R = initval.getValue('radius')
         else:
-            R = numpy.power(6*numpy.sqrt(2)/numpy.pi * cluster.getN(), 1/3.) * initval.getValue('radius')
+            R = initServ.getR(initval, cluster.getN())
         cluster.setR(R) 
         
     def setSurfaceAtoms(self, initval, cluster):
-        r = initval.getValue('radius')
+        initServ = InitValService()
         R = cluster.getR()
         N = cluster.getN()
         if N>12:
-            cluster.setSurfaceN( numpy.floor(numpy.pi/3./numpy.sqrt(2)*(6*R**2/r**2 - 12*R/r + 8)) )
+            cluster.setSurfaceN( initServ.getSurfaceN(initval, R) )
         else:
             cluster.setSurfaceN(N)   
 
@@ -276,7 +271,7 @@ class ParticleService(object):
         initServ = InitValService()
         R = cluster.getR()
         rev = initServ.getREv(initval, allN)
-        if rev > initval.getValue('radius'):
+        if rev > initval.getValue('radius')*0.1:
             cluster.setREv( rev + R )
         else:
             cluster.setREv(R)     
@@ -291,21 +286,21 @@ class ParticleService(object):
                     
     """ calibrateDistance """
         
-    def clusterSurfaceTouching(self, cluster1, cluster2):
+    def clusterSurfaceTouching(self, master, slave):
         """
-        Move cluster2 to get in touch with the surface of cluster1
+        Move slave to get in touch with the surface of master
         """
-        assert(cluster1 != cluster2), "particleService.clusterSurfaceTouching: particles identical"
-        assert(cluster1.getN()>=cluster2.getN()), "particleService.clusterSurfaceTouching: cluster1 smaller than cluster2"
-        dir_x = cluster1.getX() - cluster2.getX()
-        dir_y = cluster1.getY() - cluster2.getY()
+        assert(master != slave), "particleService.clusterSurfaceTouching: particles identical"
+        assert(master.getN()>=slave.getN()), "particleService.clusterSurfaceTouching: master smaller than slave"
+        dir_x =  master.getX() - slave.getX()
+        dir_y =  master.getY() - slave.getY()
         distance = numpy.sqrt( (dir_x)**2 + (dir_y)**2 )
-        radius = cluster1.getR() + cluster2.getR()
+        radius = master.getR() + slave.getR()
         
-        x = cluster1.getX() + (dir_x / distance) * radius
-        y = cluster1.getY() + (dir_y / distance) * radius
+        x = slave.getX() + dir_x * (distance - radius) / distance
+        y = slave.getY() + dir_y * (distance - radius) / distance
         
-        #return new position of cluster2
+        #return new position of slave
         return x, y
         
 
@@ -379,6 +374,27 @@ class ParticleService(object):
 #                 clusterList.removeParticle(cluster)
 #                 coalescenceList.removeCluster(cluster)
 #                 for contact in cluster.getContacts():
+
+
+
+
+#         for cluster in pl.GET():
+#             R = cluster.getR()
+#             x = cluster.getX()
+#             y = cluster.getY()
+#             if (abs(x + ndx) + R > area /2.):
+#                 if (x+ndx) > 0:
+#                     ndx = area/2. - x - R
+#                 else:
+#                     ndx = -area/2. - x + R
+#                 
+#             if abs(y + ndy) + R > area /2.:
+#                 if (y+ndy) > 0:
+#                     ndy = area/2. - y - R
+#                 else:
+#                     ndy = -area/2. - y + R
+#                 
+#         return ndx , ndy
 #                     contact.removeContacts([cluster])
 #         coalescenceList.clearList()
 

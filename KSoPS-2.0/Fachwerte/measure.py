@@ -20,22 +20,28 @@ class Measure(object):
         '''
         Constructor
         '''
-        self.thickness = [0]
+        self.time = [0.0]
+        self.thickness = [0.0]
         
-        self.radius = [0]
-        self.distance = [0]
-        self.cluster_density = [0]
+        self.radius = [0.0]
+        self.distance = [0.0]
+        self.cluster_density = [0.0]
         self.r_list = [[0]]
         self.d_list = [[0]]
         
-        self.dist_ww = [{}]
+        self.dist_ww = [{'deposition_sputter': 0,
+                       'clusterdeposition_sputter': 0,
+                       'nucleation': 0,
+                       'aggregation': 0,
+                       'coalescence': 0
+                       }]
         self.meancluster_properties = [[]]
         self.cluster_properties = [[]] # [x,y,r,rev]
         
-    def save(self, thickness, radius, distance, cluster_density, r_list,
-             d_list, dist_ww, meancluster_plist, cluster_plist):
+    def save(self, time, thickness, radius, distance, cluster_density, r_list,
+             d_list, dist_ww, cluster_plist):
         
-        
+        self.time.append(time)
         self.thickness.append(thickness)
         self.radius.append(radius)
         self.distance.append(distance)
@@ -43,7 +49,7 @@ class Measure(object):
         self.r_list.append(r_list)
         self.d_list.append(d_list)
         self.dist_ww.append(dist_ww)
-        self.meancluster_properties.append(meancluster_plist)
+        #self.meancluster_properties.append(meancluster_plist)
         self.cluster_properties.append(cluster_plist)
         
     def getThickness(self, index):
@@ -51,8 +57,6 @@ class Measure(object):
     
         
     def getIndexWithThickness(self, thethickness):
-        #if (thethickness < 0) or (thethickness > self.thickness[-1]):
-        #    return None
         difference = abs(thethickness - numpy.array(self.thickness))
         min_diff = min(difference)
         result = difference.index(min_diff)

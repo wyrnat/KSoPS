@@ -78,7 +78,8 @@ class InteractionService(object):
                               (particle in clusterList.GET())
                               and (particle not in coalescenceList.getListbyIndex(i).GET())
                               and (cluster != particle)
-                              and (i > coalescenceList.getIndexByCluster(particle))
+                              and (i < coalescenceList.getIndexByCluster(particle))
+                              and ( temp_coalescenceList[coalescenceList.getIndexByCluster(particle)].hasCluster(particle) )
                               ]
              
  
@@ -89,14 +90,13 @@ class InteractionService(object):
                         #in case of adatoms
                         if (cluster2.getN() == 1) and (coalescenceList.findCluster(cluster2).clusterNumber() == 1):
                             pServ.addParticleToCluster(initval, cluster2, cluster, clusterList, coalescenceList)
-                            if cluster.getN() == 1:
+                            if cluster.getN() == 2:
                                 smeasure.adatomEvent('nucleation', 1)
                             else:
                                 smeasure.adatomEvent('aggregation', 1)
                         # for clusters or clustergroups        
                         else:
                             if pServ.addContact(cluster, cluster2):
-                                #print "Addcontact erfolgreich"
                                 pl_living = coalescenceList.findCluster(cluster)
                                 pl_destroyed = coalescenceList.findCluster(cluster2)
                                 #transfer the particle objects and delete the empty particle list object
@@ -107,7 +107,8 @@ class InteractionService(object):
                 rev_ol_clear = [particle for particle in rev_ol if 
                                 (particle in clusterList.GET()) and (particle not in coalescenceList.getListbyIndex(i).GET())
                                   and (particle != cluster) and (particle not in r_ol_clear)
-                                 and (i > coalescenceList.getIndexByCluster(particle)) 
+                                 and (i < coalescenceList.getIndexByCluster(particle))
+                                 and ( temp_coalescenceList[coalescenceList.getIndexByCluster(particle)].hasCluster(particle) ) 
                                 ] 
             
                 if (len(rev_ol_clear)) != 0:
@@ -117,7 +118,7 @@ class InteractionService(object):
                         if pServ.calculateOverlap(cluster, cluster2, initval)>=rndm:
                             if (cluster2.getN() == 1) and (coalescenceList.findCluster(cluster2).clusterNumber() == 1):
                                 pServ.addParticleToCluster(initval, cluster2, cluster, clusterList, coalescenceList)
-                                if cluster.getN() == 1:
+                                if cluster.getN() == 2:
                                     smeasure.adatomEvent('nucleation', 1)
                                 else:
                                     smeasure.adatomEvent('aggregation', 1)
@@ -134,13 +135,12 @@ class InteractionService(object):
         #TODO: slaves to master bewegen, danach ueberlappungen beseitigen        
 
         partServ = ParticleService()
-                        
-        for i, pl in enumerate(coalescencelist.GET()):
+        temp_clusterList = clusterlist.GET()
+        x_list = numpy.array([cluster.getX() for cluster in temp_clusterList])
+        y_list = numpy.array([cluster.getY() for cluster in temp_clusterList])
+        r_list = numpy.array([cluster.getR() for cluster in temp_clusterList])              
+        for i, pl in enumerate(coalescencelist.GET()): 
             for cluster in pl.GET():
-                temp_clusterList = clusterlist.GET()
-                x_list = numpy.array([cluster.getX() for cluster in temp_clusterList])
-                y_list = numpy.array([cluster.getY() for cluster in temp_clusterList])
-                r_list = numpy.array([cluster.getR() for cluster in temp_clusterList])
                 x_square = (cluster.getX() - x_list)**2
                 y_square = (cluster.getY() - y_list)**2
                 distance_list = numpy.sqrt(x_square + y_square)
@@ -150,14 +150,17 @@ class InteractionService(object):
                 #overlapping cluster is not in coalescenceList and also in a coalescenceList smaller equal the recent one
                 r_ol_clear = [elm for elm in r_ol if
                               (elm != cluster) and (elm not in pl.GET())
-                              and (coalescencelist.getIndex(coalescencelist.findCluster(elm))<i)]
+                              and (coalescencelist.getIndex(coalescencelist.findCluster(elm))>i)]
             
             
             
                 # move smaller particleList away
                 for interCluster in r_ol_clear:
-                    x, y = partServ.clusterSurfaceTouching(cluster, interCluster)
-                    coalescencelist.findCluster(elm).moveAll(x-interCluster.getX(), y-interCluster.getY())
+                    if cluster.getR()+interCluster.getR() > partServ.getParticleDistance(cluster, interCluster):
+                        continue
+                    else:
+                        x, y = partServ.clusterSurfaceTouching(cluster, interCluster)
+                        coalescencelist.findCluster(interCluster).moveAll(x-interCluster.getX(), y-interCluster.getY())
                 
     
     def calibrateIntern(self, initval, coalescencelist):
@@ -172,7 +175,7 @@ class InteractionService(object):
                 assert((cluster.getMaster() in pl.GET()) or cluster.getMaster() == None), 'calibrateIntern: master of cluster not in same particleList'
                 if (cluster.getMaster() == None):
                     if j!=0:
-                        distance = initval.getValue('area')
+                        distance = 10.0*initval.getValue('area')
                         chef_cluster = None
                         for chef in pl.GET()[:j]:
                             newdistance = partServ.getParticleDistance(chef, cluster)
@@ -186,7 +189,7 @@ class InteractionService(object):
                     else:
                         continue
   
-                x, y = partServ.clusterSurfaceTouching(cluster.getMaster(), cluster)
+                x, y = partServ.clusterSurfaceTouching(master=cluster.getMaster(), slave=cluster)
                 cluster.setX(x)
                 cluster.setY(y)
     

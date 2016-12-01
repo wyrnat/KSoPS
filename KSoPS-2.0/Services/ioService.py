@@ -42,7 +42,7 @@ class IOService(object):
         myfile.write("Distance\t")
         myfile.write("Density\n")
         for i, thick in enumerate(measure.thickness):
-            myfile.write(str(i/1000.)+"\t"
+            myfile.write(str(measure.time[i])+"\t"
                          +str(thick)+"\t"
                          +str(measure.radius[i])+"\t"
                          +str(measure.distance[i])+"\t"
@@ -50,4 +50,23 @@ class IOService(object):
                          )
         myfile.close()
         
+    def saveEventsToTXT(self, measure, file_name):
+        myfile = open(file_name, 'w+')
+        myfile.write("Time\t")
+        myfile.write("Thickness\t")
+        myfile.write("Deposition_Substrat\t")
+        myfile.write("Deposition_Cluster\t")
+        myfile.write("Nucleation\t")
+        myfile.write("Aggregation\t")
+        myfile.write("Coalescence\n")
+        for i, thick in enumerate(measure.thickness):
+            myfile.write(str(measure.time[i])+"\t"
+                         +str(thick)+"\t"
+                         +str(measure.dist_ww[i]['deposition_sputter'])+"\t"
+                         +str(measure.dist_ww[i]['clusterdeposition_sputter'])+"\t"
+                         +str(measure.dist_ww[i]['nucleation'])+"\t"
+                         +str(measure.dist_ww[i]['aggregation'])+"\t"
+                         +str(measure.dist_ww[i]['coalescence'])+"\n"
+                         )
         
+        myfile.close()

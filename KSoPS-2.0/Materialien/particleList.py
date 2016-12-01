@@ -52,6 +52,12 @@ class ParticleList(object):
         for i in ind_list:
             mylist.append(self.Liste[i])
         return mylist
+    
+    def hasCluster(self, cluster):
+        if cluster in self.Liste:
+            return True
+        else:
+            return False
             
             
     

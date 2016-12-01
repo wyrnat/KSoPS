@@ -18,17 +18,18 @@ class PygameUI(object):
     
 
 
-    def __init__(self, initval):
+    def __init__(self, initval, size = 800):
         '''
         Constructor
         '''
         pygame.init()
-        self.myfont = pygame.font.SysFont("monospace", 15)
+        self.fontsize = int(size/50)
+        self.myfont = pygame.font.SysFont("monospace", self.fontsize)
         self.area = initval.getValue('area')
-        self.mult = numpy.round(800/(self.area))
+        self.mult = numpy.round(size/(self.area))
         self.screen = pygame.display.set_mode((self.area*self.mult,self.area*self.mult))
         
-    def draw(self, initval, cluster_plist, step):
+    def draw(self, cluster_plist, step):
         self.screen.fill(black)
 
         for values in cluster_plist[step]:
@@ -37,7 +38,6 @@ class PygameUI(object):
             r = values[2]
             rev = values[3]
             N = values[4]
-            masterN = values[5]
             
             if N == 1:
                 color = gold
@@ -56,10 +56,14 @@ class PygameUI(object):
                                int(numpy.ceil(rev*self.mult)),
                                1
                                ) 
-            label = self.myfont.render(str(N)+";"+str(masterN), 1, (0,255,0))
-            self.screen.blit(label,(int(numpy.ceil(x*self.mult) + self.area*self.mult/2. - r*self.mult/2.), int(numpy.ceil(y*self.mult + self.area*self.mult/2. - r*self.mult/2.))))
+            label = self.myfont.render(str(N), 1, (0,255,0))
+            self.screen.blit(label,(int(numpy.ceil(x*self.mult) + self.area*self.mult/2. - self.fontsize/2.), int(numpy.ceil(y*self.mult + self.area*self.mult/2. - self.fontsize/2.))))
             
         pygame.display.flip()
 
     def kill(self):
         pygame.display.quit()
+        
+    def safeImage(self, myfilename, step):
+        number = ("0")*(step<10)+("0")*(step<100)+("0")*(step<1000)+("0")*(step<10000)+str(step)
+        pygame.image.save(self.screen, myfilename+"_"+number+".jpg")
