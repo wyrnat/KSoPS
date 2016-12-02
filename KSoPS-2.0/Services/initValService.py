@@ -14,12 +14,23 @@ k_b = 8.6173324 * 1e-5 # Boltzmann const. (in ev/K)
 scp = numpy.pi / 6.0
 fcc = numpy.pi * numpy.sqrt(8) / 12.0
 bcc = numpy.pi * numpy.sqrt(3) / 8.0
-diamond = numpy.pi / numpy.sqrt(2) / 3.0
+hcp = numpy.pi / numpy.sqrt(2) / 3.0
+
+n_scp = 3
+n_fcc = 6
+n_bcc = 4
+n_hcp = 6
 
 lattice = {'scp': scp,
            'fcc': fcc,
            'bcc': bcc,
-           'diamond': diamond
+           'hcp': hcp
+           }
+
+n_coord = {'scp': n_scp,
+           'fcc': n_fcc,
+           'bcc': n_bcc,
+           'hcp': n_hcp
            }
 
 class InitValService(object):
@@ -41,7 +52,9 @@ class InitValService(object):
         """
         calculates the arrhenius term without material system dependent factors
         """
-        U = initval.getValue(potential)
+        assert(type(potential)==float), 'Potential not of type float'
+        assert(potential > 0), 'Potential is zero or negative'
+        U = potential
         T = initval.getValue('T')
         step_size = initval.getValue('step_size')
         return step_size * v_e * numpy.exp(-U / k_b / T)
@@ -55,7 +68,7 @@ class InitValService(object):
         a = initval.getValue('lattice_const')
         
         # describes how many steps the atom can go
-        steps = self.getArrhenius(initval, 'diffusion_e')
+        steps = self.getArrhenius(initval, initval.getValue('diffusion_e'))
         
         # describes the squared diffusion length
         diffusion_const = a**2 * steps
@@ -90,7 +103,7 @@ class InitValService(object):
         Only depending on surface atoms of smaller cluster
         """
         assert(type(surfaceN) == int), 'getAtomFlow: surfaceN type is not Integer'
-        arrhenius = self.getArrhenius(initval, 'flow_e')
+        arrhenius = self.getArrhenius(initval, initval.getValue('flow_e')*n_coord[initval.getValue('bulk')] )
         floatflow = numpy.sqrt(surfaceN * arrhenius)
         #for flow is not a natural number
         flow = int(floatflow) + 1*((floatflow % 1)>random())

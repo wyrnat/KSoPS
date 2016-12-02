@@ -71,7 +71,7 @@ class MeasureService(object):
         
                 
     def getTimeThickness(self, initval, simulation_step):
-        thickness = simulation_step * initval.getValue('growth_rate')
+        thickness = simulation_step * initval.getValue('growth_rate') * initval.getValue('step_size')
         time = simulation_step * initval.getValue('step_size') / 1000.0
         return time, thickness  
     

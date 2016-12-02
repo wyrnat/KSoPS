@@ -17,14 +17,14 @@ class InitVals(object):
         '''
         self.param = {'step_size': 1,               # simulation step size in ms
                       'measure_steps': 1,           #measuring after *n* steps ms 
-                      'area': 200,                    #surface width in nm
-                      'radius': 0.144,              #atom radius in nm
+                      'area': 100,                    #surface width in nm
+                      'radius': 0.159,              #atom radius in nm
                       'bulk': 'fcc',
                       'lattice_const': 0.543,       #substrat lattice constant in nm
                       'T': 300,                     #Temperature in K
                       'growth_rate': 0.0000438,         #thickness growth rate in nm/ms
-                      'flow_e': 0.6,                 #aggregation potential in eV
-                      'diffusion_e': 0.5,           #diffusion potential in eV
+                      'flow_e': 0.1,                 #aggregation potential in eV
+                      'diffusion_e': 0.48,           #diffusion potential in eV
                       'diffusion_exponent': -0.5,   #diffusion prop to N^de
                       'final_thickness': 10         #nm
                     }

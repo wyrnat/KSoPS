@@ -176,7 +176,7 @@ class ParticleService(object):
             dist = lambda r: numpy.exp(-(r/sigma)**2/2.) / c / sigma
             
             #calculate the gauss with integration over the sphere
-            result = lambda r: ( integrate.quad(dist, r-R, r+R, epsrel = 0.01) )[0] * ( (REv-R)/initval.getValue('lattice_const'))**2
+            result = lambda r: (integrate.quad(dist, r-R, r+R, epsrel = 0.01))[0] * ( (REv-R)/initval.getValue('lattice_const'))**2
             return result
         
     def calculateOverlap(self, cluster1, cluster2, initval):
@@ -186,12 +186,11 @@ class ParticleService(object):
         REv1 = cluster1.getREv()
         REv2 = cluster2.getREv()
         distance = numpy.sqrt((cluster1.getX()-cluster2.getX())**2 + (cluster1.getY()-cluster2.getY())**2)
-        ThreeD_Factor = numpy.arctan(REv1/distance) * numpy.arctan(REv2/distance) / numpy.pi**2
+        #ThreeD_Factor = numpy.arctan(REv1/distance) * numpy.arctan(REv2/distance) / numpy.pi**2
         
-        dist = lambda r: dist1(r)*dist2(r-distance) * ThreeD_Factor
+        dist = lambda r: dist1(r)*dist2(r-distance) #* ThreeD_Factor
         
         prohability = integrate.quad(dist, distance-REv2, REv1, epsrel = 0.01)
-
         return prohability
         
         
@@ -220,7 +219,11 @@ class ParticleService(object):
             cluster.deleteMaster()
             return
         
-        flow = initServ.getAtomFlow(initval, cluster.getSurfaceN())
+        distance = numpy.sqrt((cluster.getX()-cluster.getMaster().getX())**2 + (cluster.getY()-cluster.getMaster().getY())**2)
+        R = cluster.getMaster().getR()
+        n = cluster.getSurfaceN()
+        ThreeD_Factor = (n > 12)*(numpy.arctan(R/distance) / numpy.pi) + 1*(n <=12)
+        flow = initServ.getAtomFlow(initval, int(numpy.ceil(cluster.getSurfaceN()*ThreeD_Factor)))
         
         
         if flow == 0:
