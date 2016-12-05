@@ -52,7 +52,7 @@ class ParticleService(object):
     """ Adatom Hits """
         
     def AdatomOnSurface(self, adatom, adatomList, clusterList, coalescenceList):
-        p = adatomList.removeParticle(adatom)
+        adatomList.removeParticle(adatom)
         clusterList.addParticle(adatom)
         #adatomWWList.addParticle(p)
         coalescenceList.addAdatom(adatom)
@@ -165,9 +165,9 @@ class ParticleService(object):
         sigma = (REv - R)/3.464
         
         #round value to prevent overflow 
-        if (REv - R) < initval.getValue('radius')*0.01:
+        if (REv - R) < R*0.01:
             #define a step function
-            result = lambda r: 1.0*(r<=R and r>=-R)
+            result = lambda r: 1.0*(r<=REv and r>=-REv)
             return result
         else:
             c = numpy.sqrt(2*numpy.pi)
@@ -176,7 +176,7 @@ class ParticleService(object):
             dist = lambda r: numpy.exp(-(r/sigma)**2/2.) / c / sigma
             
             #calculate the gauss with integration over the sphere
-            result = lambda r: (integrate.quad(dist, r-R, r+R, epsrel = 0.01))[0] * ( (REv-R)/initval.getValue('lattice_const'))**2
+            result = lambda r: (integrate.quad(dist, r-R, r+R, epsrel = 0.05))[0] * ( (REv-R)/initval.getValue('lattice_const'))**2
             return result
         
     def calculateOverlap(self, cluster1, cluster2, initval):
@@ -190,7 +190,7 @@ class ParticleService(object):
         
         dist = lambda r: dist1(r)*dist2(r-distance) #* ThreeD_Factor
         
-        prohability = integrate.quad(dist, distance-REv2, REv1, epsrel = 0.01)
+        prohability = integrate.quad(dist, distance-REv2, REv1, epsrel = 0.05)
         return prohability
         
         
@@ -223,7 +223,9 @@ class ParticleService(object):
         R = cluster.getMaster().getR()
         n = cluster.getSurfaceN()
         ThreeD_Factor = (n > 12)*(numpy.arctan(R/distance) / numpy.pi) + 1*(n <=12)
-        flow = initServ.getAtomFlow(initval, int(numpy.ceil(cluster.getSurfaceN()*ThreeD_Factor)))
+        massdifference = 1
+        #massdifference = (cluster.getMaster().getSurfaceN() - cluster.getSurfaceN()+1)/(cluster.getMaster().getSurfaceN() + cluster.getSurfaceN())
+        flow = initServ.getAtomFlow(initval, int(numpy.ceil(cluster.getSurfaceN()*ThreeD_Factor*massdifference)))
         
         
         if flow == 0:

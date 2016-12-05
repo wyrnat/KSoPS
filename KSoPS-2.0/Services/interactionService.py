@@ -76,6 +76,7 @@ class InteractionService(object):
                 #not a hit if 
                 r_ol_clear = [particle for particle in r_ol if
                               (particle in clusterList.GET())
+                              and (particle.getMaster() == None)
                               and (particle not in coalescenceList.getListbyIndex(i).GET())
                               and (cluster != particle)
                               and (i < coalescenceList.getIndexByCluster(particle))
@@ -94,6 +95,7 @@ class InteractionService(object):
                                 smeasure.adatomEvent('nucleation', 1)
                             else:
                                 smeasure.adatomEvent('aggregation', 1)
+                                
                         # for clusters or clustergroups        
                         else:
                             if pServ.addContact(cluster, cluster2):
@@ -105,10 +107,13 @@ class InteractionService(object):
             
             
                 rev_ol_clear = [particle for particle in rev_ol if 
-                                (particle in clusterList.GET()) and (particle not in coalescenceList.getListbyIndex(i).GET())
-                                  and (particle != cluster) and (particle not in r_ol_clear)
-                                 and (i < coalescenceList.getIndexByCluster(particle))
-                                 and ( temp_coalescenceList[coalescenceList.getIndexByCluster(particle)].hasCluster(particle) ) 
+                                (particle in clusterList.GET())
+                                and (particle.getMaster() == None)
+                                and (particle not in coalescenceList.getListbyIndex(i).GET())
+                                and (particle != cluster)
+                                and (particle not in r_ol_clear)
+                                and (i < coalescenceList.getIndexByCluster(particle))
+                                and ( temp_coalescenceList[coalescenceList.getIndexByCluster(particle)].hasCluster(particle) ) 
                                 ] 
             
                 if (len(rev_ol_clear)) != 0:
@@ -123,6 +128,7 @@ class InteractionService(object):
                                     smeasure.adatomEvent('nucleation', 1)
                                 else:
                                     smeasure.adatomEvent('aggregation', 1)
+
                             # for clusters or clustergroups        
                             else:
                                 if pServ.addContact(cluster, cluster2):
@@ -130,6 +136,7 @@ class InteractionService(object):
                                     pl_destroyed = coalescenceList.findCluster(cluster2)
                                     #transfer the particle objects and delete the empty particle list object
                                     pServ.fuseParticleLists(pl_living, pl_destroyed, coalescenceList)
+                                   
                                 
                                 
     def calibrateCoalescence(self, initval, clusterlist, coalescencelist):
@@ -164,14 +171,15 @@ class InteractionService(object):
                         coalescencelist.findCluster(interCluster).moveAll(x-interCluster.getX(), y-interCluster.getY())
                 
     
-    def calibrateIntern(self, initval, coalescencelist):
+    def calibrateIntern(self, initval, clusterList, coalescencelist):
         partServ = ParticleService()
         for pl in coalescencelist.GET():
             if pl.clusterNumber() == 1:
                 continue
             pl.sortList()
             for j, cluster in enumerate(pl.GET()):
-                
+                if (cluster.getMaster() not in clusterList.GET()) and (cluster.getMaster() != None):
+                    cluster.deleteMaster()
                 assert(cluster != cluster.getMaster()), 'calibrateIntern: calibrateCLuster: cluster is his own master'
                 assert((cluster.getMaster() in pl.GET()) or cluster.getMaster() == None), 'calibrateIntern: master of cluster not in same particleList'
                 if (cluster.getMaster() == None):
@@ -189,7 +197,8 @@ class InteractionService(object):
                             continue
                     else:
                         continue
-  
+                if cluster.getMaster().getN() < cluster.getN():
+                    continue
                 x, y = partServ.clusterSurfaceTouching(master=cluster.getMaster(), slave=cluster)
                 cluster.setX(x)
                 cluster.setY(y)

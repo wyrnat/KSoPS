@@ -160,7 +160,7 @@ class Werkzeug(object):
         coalescenceList.sortList()
         
         #calibrate for each particleList in coalescenceList        
-        intServ.calibrateIntern(initval, coalescenceList)
+        intServ.calibrateIntern(initval, clusterList, coalescenceList)
         #calibrate for all clusters
         intServ.calibrateCoalescence(initval, clusterList, coalescenceList)
             

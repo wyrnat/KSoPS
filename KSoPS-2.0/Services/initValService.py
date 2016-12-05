@@ -44,9 +44,13 @@ class InitValService(object):
         """
         growth_rate = initval.getValue('growth_rate')
         area = initval.getValue('area')
+        bulk = initval.getValue('bulk')
         radius = initval.getValue('radius')
         step_size = initval.getValue('step_size')
-        return int(numpy.ceil(step_size * growth_rate * area**2 / (numpy.sqrt(32) * radius**3)))
+        rndm = random()
+        base = step_size*lattice[bulk]*growth_rate*area**2*3/(4*numpy.pi*radius**3)
+        result = 1*(base % 1 > rndm) + int(base)
+        return int(result)
     
     def getArrhenius(self, initval, potential):
         """

@@ -16,6 +16,9 @@ class MeasureService(object):
     
     
     def getMeanValues(self, initval, clusterList, coalescenceList):
+        
+        if len(clusterList.GET()) == 0:
+            return 0.0 , 0.0 , 0.0 ,  [0.0] , [0.0]
         r = 0
         d = 0
         r_list = []

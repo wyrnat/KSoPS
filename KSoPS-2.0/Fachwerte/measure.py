@@ -26,8 +26,8 @@ class Measure(object):
         self.radius = [0.0]
         self.distance = [0.0]
         self.cluster_density = [0.0]
-        self.r_list = [[0]]
-        self.d_list = [[0]]
+        self.r_list = [[0.0]]
+        self.d_list = [[0.0]]
         
         self.dist_ww = [{'deposition_sputter': 0,
                        'clusterdeposition_sputter': 0,
