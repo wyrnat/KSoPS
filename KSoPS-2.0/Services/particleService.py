@@ -175,8 +175,12 @@ class ParticleService(object):
             #define the gauss function in 1dim. with 2dim normalisation
             dist = lambda r: numpy.exp(-(r/sigma)**2/2.) / c / sigma
             
+            tries = ((REv-R)/initval.getValue('lattice_const'))**2
+            if tries < 1:
+                tries = 1
+            
             #calculate the gauss with integration over the sphere
-            result = lambda r: (integrate.quad(dist, r-R, r+R, epsrel = 0.05))[0] * ( (REv-R)/initval.getValue('lattice_const'))**2
+            result = lambda r: (integrate.quad(dist, r-R, r+R, epsrel = 0.05))[0] * tries
             return result
         
     def calculateOverlap(self, cluster1, cluster2, initval):

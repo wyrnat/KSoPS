@@ -120,7 +120,11 @@ class InteractionService(object):
                     for cluster2 in rev_ol_clear:
                         
                         rndm = random()
-                        prohability = pServ.calculateOverlap(cluster, cluster2, initval)[0]
+                        probably = (rndm < 0.01)
+                        if probably == False:
+                            prohability = pServ.calculateOverlap(cluster, cluster2, initval)[0]
+                        else:
+                            prohability = 1
                         if prohability>rndm:
                             if (cluster2.getN() == 1) and (coalescenceList.findCluster(cluster2).clusterNumber() == 1):
                                 pServ.addParticleToCluster(initval, cluster2, cluster, clusterList, coalescenceList)
