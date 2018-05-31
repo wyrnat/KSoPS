@@ -1,7 +1,7 @@
 '''
 Created on 18.03.2016
 
-@author: jannik
+@author: woehnert
 '''
 
 from particleList import ParticleList

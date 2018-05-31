@@ -1,7 +1,7 @@
 '''
 Created on 15.10.2015
 
-@author: jannik
+@author: woehnert
 '''
 
 from Fachwerte.initVals import InitVals

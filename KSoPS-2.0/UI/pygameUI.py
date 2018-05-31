@@ -1,7 +1,7 @@
 '''
 Created on 04.04.2016
 
-@author: jannik
+@author: woehnert
 '''
 import pygame
 import numpy

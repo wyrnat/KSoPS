@@ -1,7 +1,7 @@
 '''
 Created on 21.03.2016
 
-@author: jannik
+@author: woehnert
 '''
 
 class SingleMeasure(object):

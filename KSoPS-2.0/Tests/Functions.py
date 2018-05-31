@@ -1,7 +1,7 @@
 '''
 Created on 26.11.2016
 
-@author: jannik
+@author: woehnert
 '''
 
 import numpy

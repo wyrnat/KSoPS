@@ -1,7 +1,7 @@
 '''
 Created on 19.10.2015
 
-@author: jannik
+@author: woehnert
 '''
 import numpy
 from particleService import ParticleService

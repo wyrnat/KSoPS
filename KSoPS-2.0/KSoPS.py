@@ -1,33 +1,33 @@
 '''
 Created on 25.11.2016
 
-@author: jannik
+@author: woehnert
+@version: 2.0
+@note: Kinetic Simulation of Particle Sputtering
 '''
 
-import numpy
-import scipy
 from Werkzeug.KSoPSWerkzeug import Werkzeug
 from Services.ioService import IOService
 from UI.pygameUI import PygameUI
 import os
 
-exp_name = "300K_new"
+exp_name = "myExperiment"
 if not os.path.exists("Simulationen/"+exp_name):
     os.makedirs("Simulationen/"+exp_name)
 
 
 myinitvals = {'step_size': 1,
-              'measure_steps': 50,               #measuring after *n* ms 
-              'area': 100,                      #surface width in nm
+              'measure_steps': 1,               #measuring after *n* ms 
+              'area': 50,                      #surface width in nm
               'radius': 0.159,                  #atom radius in nm
               'bulk': 'fcc',
               'lattice_const': 0.543,           #substrat lattice constant in nm
               'T': 300,                         #Temperature in K
-              'growth_rate': 0.0000438,         #thickness growth rate in nm/ms
+              'growth_rate': 0.001429,         #thickness growth rate in nm/ms
               'flow_e': 0.1,                   #bulk potential in eV (bond per coordinate number
               'diffusion_e': 0.48,              #substrat potential in eV
               'diffusion_exponent': -0.5,       #diffusion prop to N^de
-              'final_thickness': 10             #nm
+              'final_thickness': 1.67             #nm
                     }
 
 myWerkzeug = Werkzeug(myinitvals)

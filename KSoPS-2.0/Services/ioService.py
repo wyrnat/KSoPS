@@ -1,7 +1,7 @@
 '''
 Created on 02.03.2016
 
-@author: jannik
+@author: woehnert
 '''
 import h5py
 
